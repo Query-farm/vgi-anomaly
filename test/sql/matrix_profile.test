@@ -1,0 +1,59 @@
+# name: test/sql/matrix_profile.test
+# description: Matrix profile, discord (anomaly), and motif on known series
+# group: [vgi_anomaly]
+
+require-env VGI_ANOMALY_WORKER
+
+statement ok
+LOAD vgi;
+
+statement ok
+ATTACH 'anomaly' AS anomaly (TYPE vgi, LOCATION '${VGI_ANOMALY_WORKER}');
+
+# Series of length 25 with a single injected spike at index 18. With window 4 the
+# top discord (most anomalous subsequence) starts at index 16 (covering 16..19,
+# which contains the spike).
+query I
+SELECT anomaly.discord_index(
+  [1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4);
+----
+16
+
+# matrix_profile length = N - window + 1 = 25 - 4 + 1 = 22.
+query I
+SELECT len(anomaly.matrix_profile(
+  [1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4));
+----
+22
+
+# Two identical triangle patterns (window 5) -> the top motif starts at index 0
+# (the first copy; the second copy lives further along the series).
+query I
+SELECT anomaly.motif_index(
+  [0.0,2.0,4.0,2.0,0.0,0.1,0.116,0.133,0.15,0.166,0.183,0.2,0.0,2.0,4.0,2.0,0.0,0.3,0.4,0.5]::DOUBLE[], 5);
+----
+0
+
+# NULL series -> NULL.
+query I
+SELECT anomaly.discord_index(NULL::DOUBLE[], 4) IS NULL;
+----
+true
+
+# Window too large (window >= length) is a clear error.
+statement error
+SELECT anomaly.matrix_profile([1.0,2.0,3.0]::DOUBLE[], 3);
+----
+
+# Per-group use: array_agg builds the series in SQL.
+query I
+SELECT anomaly.discord_index(array_agg(v ORDER BY t), 4)
+FROM (
+  SELECT t, CASE WHEN t = 18 THEN 50.0 ELSE 1.0 + (t % 6) END AS v
+  FROM generate_series(0, 24) AS g(t)
+);
+----
+16
+
+statement ok
+DETACH anomaly;

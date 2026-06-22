@@ -1,0 +1,45 @@
+# name: test/sql/zscore.test
+# description: Light z-score outlier detection
+# group: [vgi_anomaly]
+
+require-env VGI_ANOMALY_WORKER
+
+statement ok
+LOAD vgi;
+
+statement ok
+ATTACH 'anomaly' AS anomaly (TYPE vgi, LOCATION '${VGI_ANOMALY_WORKER}');
+
+# One injected outlier (40.0) at index 5; everything else ~10. Beyond 2 sigma -> [5].
+query I
+SELECT anomaly.zscore_anomalies(
+  [10.0,10.0,11.0,9.0,10.0,40.0,10.0,9.0,11.0]::DOUBLE[], 2.0);
+----
+[5]
+
+# UNNEST the flagged indices into rows.
+query I
+SELECT UNNEST(anomaly.zscore_anomalies(
+  [10.0,10.0,11.0,9.0,10.0,40.0,10.0,9.0,11.0]::DOUBLE[], 2.0));
+----
+5
+
+# A constant series flags nothing (empty list, not NULL).
+query I
+SELECT len(anomaly.zscore_anomalies([5.0,5.0,5.0,5.0,5.0]::DOUBLE[], 3.0));
+----
+0
+
+# NULL series -> NULL.
+query I
+SELECT anomaly.zscore_anomalies(NULL::DOUBLE[], 3.0) IS NULL;
+----
+true
+
+# Non-positive threshold is a clear error.
+statement error
+SELECT anomaly.zscore_anomalies([1.0,2.0,3.0]::DOUBLE[], 0.0);
+----
+
+statement ok
+DETACH anomaly;

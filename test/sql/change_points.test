@@ -1,0 +1,49 @@
+# name: test/sql/change_points.test
+# description: Change-point detection (PELT auto + fixed n) on step functions
+# group: [vgi_anomaly]
+
+require-env VGI_ANOMALY_WORKER
+
+statement ok
+LOAD vgi;
+
+statement ok
+ATTACH 'anomaly' AS anomaly (TYPE vgi, LOCATION '${VGI_ANOMALY_WORKER}');
+
+# A single step from 1 -> 9 at index 8. Automatic PELT returns [8].
+query I
+SELECT anomaly.change_points(
+  [1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]::DOUBLE[]);
+----
+[8]
+
+# Fixed single breakpoint, same step -> [8].
+query I
+SELECT anomaly.change_points(
+  [1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]::DOUBLE[], 1);
+----
+[8]
+
+# Built from a generated step via array_agg: 0..7 -> 0.0, 8..15 -> 10.0.
+query I
+SELECT anomaly.change_points(array_agg(v ORDER BY t), 1)
+FROM (
+  SELECT t, CASE WHEN t < 8 THEN 0.0 ELSE 10.0 END AS v
+  FROM generate_series(0, 15) AS g(t)
+);
+----
+[8]
+
+# NULL series -> NULL.
+query I
+SELECT anomaly.change_points(NULL::DOUBLE[]) IS NULL;
+----
+true
+
+# n_bkps out of range (>= length) is a clear error.
+statement error
+SELECT anomaly.change_points([1.0,2.0,3.0,4.0]::DOUBLE[], 4);
+----
+
+statement ok
+DETACH anomaly;
