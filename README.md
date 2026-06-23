@@ -4,7 +4,9 @@
 
 <p align="center"><em>A <a href="https://query.farm">Query.Farm</a> VGI worker for DuckDB.</em></p>
 
-# vgi-anomaly
+# Time-Series Anomaly Detection — Motifs, Discords & Change Points in DuckDB
+
+> **vgi-anomaly** · a [Query.Farm](https://query.farm) VGI worker · powered by STUMPY
 
 [![CI](https://github.com/Query-farm/vgi-anomaly/actions/workflows/ci.yml/badge.svg)](https://github.com/Query-farm/vgi-anomaly/actions/workflows/ci.yml)
 
