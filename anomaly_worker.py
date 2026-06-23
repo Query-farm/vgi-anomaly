@@ -1,15 +1,12 @@
 # /// script
 # requires-python = ">=3.13"
 # dependencies = [
-#     "vgi-python",
+#     "vgi-python>=0.8.3",
 #     "stumpy>=1.12",
 #     "ruptures>=1.1.9",
 #     "numpy",
 #     "pyarrow",
 # ]
-#
-# [tool.uv.sources]
-# vgi-python = { path = "../vgi-python" }
 # ///
 """VGI worker exposing time-series anomaly detection to DuckDB/SQL.
 
