@@ -105,7 +105,8 @@ def matrix_profile(values: list[float] | None, window: int) -> list[float] | Non
     if arr is None:
         return None
     _check_window(window, len(arr))
-    return _profile(arr, window).tolist()
+    result: list[float] = _profile(arr, window).tolist()
+    return result
 
 
 def discord_index(values: list[float] | None, window: int) -> int | None:

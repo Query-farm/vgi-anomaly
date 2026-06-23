@@ -74,6 +74,8 @@ class MatrixProfileFunction(ScalarFunction):
     """``matrix_profile(values, window)`` -- STUMP matrix profile of the series."""
 
     class Meta:
+        """VGI registration metadata for ``matrix_profile``."""
+
         name = "matrix_profile"
         description = (
             "Matrix profile (STUMP): per-subsequence z-normalized distance to its nearest "
@@ -93,6 +95,7 @@ class MatrixProfileFunction(ScalarFunction):
         values: Annotated[pa.ListArray, Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
         window: Annotated[int, ConstParam(_WINDOW_DOC)],
     ) -> Annotated[pa.ListArray, Returns(arrow_type=_LIST_DOUBLE)]:
+        """Map the matrix-profile detector over each series row."""
         return _map_series(values, lambda v: detectors.matrix_profile(v, window), _LIST_DOUBLE)
 
 
@@ -100,6 +103,8 @@ class DiscordIndexFunction(ScalarFunction):
     """``discord_index(values, window)`` -- start index of the top discord."""
 
     class Meta:
+        """VGI registration metadata for ``discord_index``."""
+
         name = "discord_index"
         description = (
             "Start index of the top discord (anomaly): the subsequence with the largest "
@@ -119,6 +124,7 @@ class DiscordIndexFunction(ScalarFunction):
         values: Annotated[pa.ListArray, Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
         window: Annotated[int, ConstParam(_WINDOW_DOC)],
     ) -> Annotated[pa.Int64Array, Returns()]:
+        """Map the discord-index detector over each series row."""
         return _map_series(values, lambda v: detectors.discord_index(v, window), pa.int64())
 
 
@@ -126,6 +132,8 @@ class MotifIndexFunction(ScalarFunction):
     """``motif_index(values, window)`` -- start index of the top motif."""
 
     class Meta:
+        """VGI registration metadata for ``motif_index``."""
+
         name = "motif_index"
         description = (
             "Start index of the top motif (most repeated pattern): the subsequence with the "
@@ -145,6 +153,7 @@ class MotifIndexFunction(ScalarFunction):
         values: Annotated[pa.ListArray, Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
         window: Annotated[int, ConstParam(_WINDOW_DOC)],
     ) -> Annotated[pa.Int64Array, Returns()]:
+        """Map the motif-index detector over each series row."""
         return _map_series(values, lambda v: detectors.motif_index(v, window), pa.int64())
 
 
@@ -157,6 +166,8 @@ class ChangePointsFunction(ScalarFunction):
     """``change_points(values)`` -- PELT change-point indices (auto count)."""
 
     class Meta:
+        """VGI registration metadata for ``change_points`` (auto count)."""
+
         name = "change_points"
         description = (
             "Change-point indices via ruptures PELT (model='rbf', automatic log(n)*variance "
@@ -175,6 +186,7 @@ class ChangePointsFunction(ScalarFunction):
         cls,
         values: Annotated[pa.ListArray, Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
     ) -> Annotated[pa.ListArray, Returns(arrow_type=_LIST_BIGINT)]:
+        """Map the auto-count change-point detector over each series row."""
         return _map_series(values, lambda v: detectors.change_points(v, None), _LIST_BIGINT)
 
 
@@ -182,6 +194,8 @@ class ChangePointsNFunction(ScalarFunction):
     """``change_points(values, n_bkps)`` -- exactly ``n_bkps`` change points."""
 
     class Meta:
+        """VGI registration metadata for ``change_points`` (fixed count)."""
+
         name = "change_points"
         description = (
             "Change-point indices via ruptures dynamic programming (Dynp, model='rbf') for "
@@ -201,6 +215,7 @@ class ChangePointsNFunction(ScalarFunction):
         values: Annotated[pa.ListArray, Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
         n_bkps: Annotated[int, ConstParam("Exact number of breakpoints to find (>= 1, < length).")],
     ) -> Annotated[pa.ListArray, Returns(arrow_type=_LIST_BIGINT)]:
+        """Map the fixed-count change-point detector over each series row."""
         return _map_series(values, lambda v: detectors.change_points(v, n_bkps), _LIST_BIGINT)
 
 
@@ -213,6 +228,8 @@ class ZscoreAnomaliesFunction(ScalarFunction):
     """``zscore_anomalies(values, threshold)`` -- indices where |z| > threshold."""
 
     class Meta:
+        """VGI registration metadata for ``zscore_anomalies``."""
+
         name = "zscore_anomalies"
         description = (
             "Indices whose value is more than `threshold` population std devs from the mean "
@@ -232,6 +249,7 @@ class ZscoreAnomaliesFunction(ScalarFunction):
         values: Annotated[pa.ListArray, Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
         threshold: Annotated[float, ConstParam("Z-score magnitude threshold (positive, e.g. 3.0).")],
     ) -> Annotated[pa.ListArray, Returns(arrow_type=_LIST_BIGINT)]:
+        """Map the z-score anomaly detector over each series row."""
         return _map_series(values, lambda v: detectors.zscore_anomalies(v, threshold), _LIST_BIGINT)
 
 
