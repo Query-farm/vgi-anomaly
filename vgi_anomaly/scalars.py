@@ -90,15 +90,15 @@ def _meta_tags(
 
     Every function carries VGI124 ``vgi.title`` (a human display name that is
     intentionally *not* the machine name, to satisfy VGI125), VGI112
-    ``vgi.description_llm`` and VGI113 ``vgi.description_md`` (Markdown
+    ``vgi.doc_llm`` and VGI113 ``vgi.doc_md`` (Markdown
     narratives for agents and humans respectively), VGI126 ``vgi.keywords``
     (comma-separated synonyms), and VGI128 ``vgi.source_url`` (the file that
     implements the detection logic).
     """
     return {
         "vgi.title": title,
-        "vgi.description_llm": description_llm,
-        "vgi.description_md": description_md,
+        "vgi.doc_llm": description_llm,
+        "vgi.doc_md": description_md,
         "vgi.keywords": keywords,
         "vgi.source_url": _DETECTORS_SOURCE_URL,
     }

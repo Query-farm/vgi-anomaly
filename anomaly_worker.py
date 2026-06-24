@@ -91,8 +91,8 @@ _ANOMALY_CATALOG = Catalog(
             "anomaly detection, time series, matrix profile, stumpy, discord, motif, "
             "change point, ruptures, PELT, z-score, outlier, regime change, segmentation"
         ),
-        "vgi.description_llm": _CATALOG_DESCRIPTION_LLM,
-        "vgi.description_md": _CATALOG_DESCRIPTION_MD,
+        "vgi.doc_llm": _CATALOG_DESCRIPTION_LLM,
+        "vgi.doc_md": _CATALOG_DESCRIPTION_MD,
         "vgi.author": "Query.Farm",
         "vgi.copyright": "Copyright 2026 Query Farm LLC - https://query.farm",
         "vgi.license": "MIT",
@@ -110,8 +110,8 @@ _ANOMALY_CATALOG = Catalog(
                     "outlier, regime change, time series, segmentation, stumpy, ruptures"
                 ),
                 "vgi.source_url": ("https://github.com/Query-farm/vgi-anomaly/blob/main/anomaly_worker.py"),
-                "vgi.description_llm": _SCHEMA_DESCRIPTION_LLM,
-                "vgi.description_md": _SCHEMA_DESCRIPTION_MD,
+                "vgi.doc_llm": _SCHEMA_DESCRIPTION_LLM,
+                "vgi.doc_md": _SCHEMA_DESCRIPTION_MD,
                 # VGI123 classifying tags use BARE keys (not vgi.-namespaced).
                 "domain": "time-series",
                 "category": "anomaly-detection",
