@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.13"
 # dependencies = [
-#     "vgi-python[http]>=0.8.3",
+#     "vgi-python[http]>=0.8.4",
 #     "stumpy>=1.12",
 #     "ruptures>=1.1.9",
 #     "numpy",
@@ -50,13 +50,58 @@ from vgi.catalog import Catalog, Schema
 from vgi_anomaly import detectors
 from vgi_anomaly.scalars import SCALAR_FUNCTIONS
 
+_CATALOG_DESCRIPTION_LLM = (
+    "Time-series anomaly detection over a numeric series passed as a single DOUBLE[] argument "
+    "(build it in SQL with array_agg(value ORDER BY t)). Find the most anomalous subsequence "
+    "(discord) and the most repeated pattern (motif) with the matrix profile, compute the full "
+    "matrix profile, detect change points (regime shifts) with ruptures PELT/Dynp, and flag "
+    "individual outliers beyond a z-score threshold. Use for outlier detection, motif/discord "
+    "discovery, regime-change detection, and series quality checks in SQL."
+)
+
+_CATALOG_DESCRIPTION_MD = (
+    "# anomaly\n\n"
+    "Time-series anomaly detection for DuckDB/SQL, backed by `stumpy` (matrix profile), "
+    "`ruptures` (change points) and `numpy` (z-score).\n\n"
+    "Each function takes a whole numeric series as a single `DOUBLE[]` argument "
+    "(`array_agg(value ORDER BY t)`).\n\n"
+    "Scalars: `matrix_profile`, `discord_index`, `motif_index`, `change_points`, "
+    "`zscore_anomalies`."
+)
+
+_SCHEMA_DESCRIPTION_LLM = (
+    "Anomaly-detection scalar functions operating on a whole numeric series (DOUBLE[]): "
+    "matrix profile, top discord (anomaly) index, top motif index, change-point detection, "
+    "and z-score outlier indices."
+)
+
+_SCHEMA_DESCRIPTION_MD = (
+    "Time-series anomaly-detection scalar functions: matrix profile, discords, motifs, "
+    "change points, and z-score outliers."
+)
+
 _ANOMALY_CATALOG = Catalog(
     name="anomaly",
     default_schema="main",
+    comment="Time-series anomaly detection: matrix profile, change points, z-score for SQL.",
+    source_url="https://github.com/Query-farm/vgi-anomaly",
+    tags={
+        "vgi.description_llm": _CATALOG_DESCRIPTION_LLM,
+        "vgi.description_md": _CATALOG_DESCRIPTION_MD,
+        "vgi.author": "Query.Farm",
+        "vgi.copyright": "Copyright 2026 Query Farm LLC - https://query.farm",
+        "vgi.license": "MIT",
+        "vgi.support_contact": "https://github.com/Query-farm/vgi-anomaly/issues",
+        "vgi.support_policy_url": "https://github.com/Query-farm/vgi-anomaly/blob/main/README.md",
+    },
     schemas=[
         Schema(
             name="main",
             comment="Time-series anomaly detection: matrix profile, change points, z-score for SQL",
+            tags={
+                "vgi.description_llm": _SCHEMA_DESCRIPTION_LLM,
+                "vgi.description_md": _SCHEMA_DESCRIPTION_MD,
+            },
             functions=list(SCALAR_FUNCTIONS),
         ),
     ],
