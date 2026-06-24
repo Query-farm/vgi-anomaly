@@ -27,6 +27,7 @@ NULL, it never aborts the batch.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from typing import Annotated
 
@@ -42,6 +43,65 @@ _WINDOW_DOC = "Subsequence length for the matrix profile (>= 3 and < series leng
 
 _LIST_DOUBLE = pa.list_(pa.float64())
 _LIST_BIGINT = pa.list_(pa.int64())
+
+# Base URL for vgi.source_url (VGI128) links into the implementing source file.
+_SOURCE_BASE = "https://github.com/Query-farm/vgi-anomaly/blob/main/vgi_anomaly"
+_SCALARS_SOURCE_URL = f"{_SOURCE_BASE}/scalars.py"
+_DETECTORS_SOURCE_URL = f"{_SOURCE_BASE}/detectors.py"
+
+# VGI509: at least one object must ship vgi.executable_examples — a JSON list of
+# {"description","sql"} objects whose SQL is catalog-qualified and self-contained
+# (no external tables) so the linter can execute every one against the worker.
+# expected_result is optional and intentionally omitted.
+_EXECUTABLE_EXAMPLES = json.dumps(
+    [
+        {
+            "description": "Flag z-score outliers beyond 2 sigma; the 40.0 spike is index 5.",
+            "sql": ("SELECT anomaly.zscore_anomalies([10.0,10.0,11.0,9.0,10.0,40.0,10.0,9.0,11.0]::DOUBLE[], 2.0)"),
+        },
+        {
+            "description": "Top discord (most anomalous window) of a 25-point series, window 4.",
+            "sql": (
+                "SELECT anomaly.discord_index("
+                "[1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,"
+                "3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4)"
+            ),
+        },
+        {
+            "description": "Automatic change-point detection on a single step at index 8.",
+            "sql": (
+                "SELECT anomaly.change_points("
+                "[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]"
+                "::DOUBLE[])"
+            ),
+        },
+    ]
+)
+
+
+def _meta_tags(
+    *,
+    title: str,
+    description_llm: str,
+    description_md: str,
+    keywords: str,
+) -> dict[str, str]:
+    """Build the strict-profile per-object tag set shared by every scalar.
+
+    Every function carries VGI124 ``vgi.title`` (a human display name that is
+    intentionally *not* the machine name, to satisfy VGI125), VGI112
+    ``vgi.description_llm`` and VGI113 ``vgi.description_md`` (Markdown
+    narratives for agents and humans respectively), VGI126 ``vgi.keywords``
+    (comma-separated synonyms), and VGI128 ``vgi.source_url`` (the file that
+    implements the detection logic).
+    """
+    return {
+        "vgi.title": title,
+        "vgi.description_llm": description_llm,
+        "vgi.description_md": description_md,
+        "vgi.keywords": keywords,
+        "vgi.source_url": _DETECTORS_SOURCE_URL,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -82,10 +142,58 @@ class MatrixProfileFunction(ScalarFunction):
             "neighbour; length = len(values) - window + 1. NULL for a short/invalid series."
         )
         categories = ["anomaly", "matrix_profile"]
+        tags = _meta_tags(
+            title="Matrix Profile of Series",
+            description_llm=(
+                "# matrix_profile\n\n"
+                "Compute the **matrix profile** of a numeric time series with STUMP "
+                "(`stumpy.stump`). The result is a `DOUBLE[]` of length "
+                "`len(values) - window + 1`; element `i` is the z-normalized Euclidean "
+                "distance from the length-`window` subsequence starting at `i` to its "
+                "nearest non-trivial neighbour.\n\n"
+                "## When to use\n"
+                "Use it as the foundation for anomaly and pattern analysis on a single "
+                "series: large profile values mark **discords** (anomalous subsequences), "
+                "small values mark **motifs** (repeated patterns). Prefer the dedicated "
+                "`discord_index` / `motif_index` helpers if you only need the top index.\n\n"
+                "## Inputs / outputs\n"
+                "- `values DOUBLE[]` — the whole series, built in SQL with "
+                "`array_agg(value ORDER BY t)` or a `[...]::DOUBLE[]` literal.\n"
+                "- `window BIGINT` — subsequence length, constant per call, "
+                "`3 <= window < len(values)`.\n"
+                "- Returns `DOUBLE[]` of profile distances, or `NULL`.\n\n"
+                "## Edge cases\n"
+                "A NULL, empty, too-short, or non-finite series returns `NULL` (per row, "
+                "never an error). A `window` outside `[3, len)` raises a clear SQL error. "
+                "Cost is O(n^2); series longer than 1,000,000 samples are rejected."
+            ),
+            description_md=(
+                "# Matrix Profile\n\n"
+                "Returns the matrix profile of a numeric series for a given subsequence "
+                "`window`, computed with `stumpy.stump`.\n\n"
+                "## Usage\n"
+                "```sql\n"
+                "SELECT anomaly.matrix_profile([1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0]::DOUBLE[], 4);\n"
+                "SELECT anomaly.matrix_profile(array_agg(v ORDER BY t), 50) FROM series;\n"
+                "```\n\n"
+                "## Notes\n"
+                "The output length is `len(values) - window + 1`. Pair it with `argmax` "
+                "for the discord or `argmin` for the motif. NULL for an invalid/short "
+                "series; an out-of-range `window` is a hard error."
+            ),
+            keywords=(
+                "matrix profile, stumpy, stump, z-normalized distance, subsequence, "
+                "anomaly, discord, motif, time series, similarity"
+            ),
+        )
         examples = [
             FunctionExample(
-                sql="SELECT anomaly.matrix_profile(array_agg(v ORDER BY t), 50) FROM series",
-                description="Matrix profile of a series with window 50",
+                sql=(
+                    "SELECT len(anomaly.matrix_profile("
+                    "[1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,"
+                    "3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4))"
+                ),
+                description="Matrix profile length for a 25-point series, window 4 (= 22).",
             ),
         ]
 
@@ -111,10 +219,55 @@ class DiscordIndexFunction(ScalarFunction):
             "matrix-profile value. NULL for a short/invalid series."
         )
         categories = ["anomaly", "matrix_profile"]
+        tags = _meta_tags(
+            title="Top Discord Start Index",
+            description_llm=(
+                "# discord_index\n\n"
+                "Return the **start index of the top discord** of a numeric series: the "
+                "length-`window` subsequence whose matrix-profile distance is the "
+                "**largest**, i.e. the most anomalous, least-similar pattern in the "
+                "series.\n\n"
+                "## When to use\n"
+                "Use it to locate the single most unusual stretch of a time series "
+                "(a spike, a glitch, an out-of-pattern run) without materializing the "
+                "full matrix profile. For the full distance vector use `matrix_profile`; "
+                "for the *most repeated* pattern use `motif_index`.\n\n"
+                "## Inputs / outputs\n"
+                "- `values DOUBLE[]` — the series (`array_agg(value ORDER BY t)`).\n"
+                "- `window BIGINT` — subsequence length, `3 <= window < len(values)`.\n"
+                "- Returns a `BIGINT` start index (0-based), or `NULL`.\n\n"
+                "## Edge cases\n"
+                "NULL / empty / too-short / non-finite series returns `NULL`; an "
+                "out-of-range `window` raises a clear SQL error. Ties resolve to the "
+                "first (lowest) index, matching `numpy.argmax`."
+            ),
+            description_md=(
+                "# Discord Index\n\n"
+                "Start index of the most anomalous length-`window` subsequence (largest "
+                "matrix-profile value).\n\n"
+                "## Usage\n"
+                "```sql\n"
+                "SELECT anomaly.discord_index(\n"
+                "  [1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,\n"
+                "   3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4);  -- 16\n"
+                "```\n\n"
+                "## Notes\n"
+                "Returns NULL for an invalid/short series; an out-of-range `window` is a "
+                "hard error. The index points at the first sample of the discord window."
+            ),
+            keywords=(
+                "discord, anomaly index, most anomalous, outlier subsequence, matrix "
+                "profile, argmax, time series, novelty detection"
+            ),
+        )
         examples = [
             FunctionExample(
-                sql="SELECT anomaly.discord_index(array_agg(v ORDER BY t), 50) FROM series",
-                description="Index of the most anomalous window",
+                sql=(
+                    "SELECT anomaly.discord_index("
+                    "[1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,"
+                    "3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4)"
+                ),
+                description="Index of the most anomalous window (a spike at 18 -> 16).",
             ),
         ]
 
@@ -140,10 +293,56 @@ class MotifIndexFunction(ScalarFunction):
             "smallest matrix-profile value. NULL for a short/invalid series."
         )
         categories = ["anomaly", "matrix_profile"]
+        tags = _meta_tags(
+            title="Top Motif Start Index",
+            description_llm=(
+                "# motif_index\n\n"
+                "Return the **start index of the top motif** of a numeric series: the "
+                "length-`window` subsequence whose matrix-profile distance is the "
+                "**smallest**, i.e. the most repeated, most conserved pattern in the "
+                "series.\n\n"
+                "## When to use\n"
+                "Use it to find recurring shapes — a daily load curve, a heartbeat, a "
+                "repeated motion — without computing the whole matrix profile. It is the "
+                "complement of `discord_index` (anomalies): motif = smallest distance, "
+                "discord = largest distance.\n\n"
+                "## Inputs / outputs\n"
+                "- `values DOUBLE[]` — the series (`array_agg(value ORDER BY t)`).\n"
+                "- `window BIGINT` — subsequence length, `3 <= window < len(values)`.\n"
+                "- Returns a `BIGINT` start index (0-based) of one copy of the motif, "
+                "or `NULL`.\n\n"
+                "## Edge cases\n"
+                "NULL / empty / too-short / non-finite series returns `NULL`; an "
+                "out-of-range `window` raises a clear SQL error. Ties resolve to the "
+                "first (lowest) index, matching `numpy.argmin`."
+            ),
+            description_md=(
+                "# Motif Index\n\n"
+                "Start index of the most repeated length-`window` subsequence (smallest "
+                "matrix-profile value).\n\n"
+                "## Usage\n"
+                "```sql\n"
+                "SELECT anomaly.motif_index(\n"
+                "  [0.0,2.0,4.0,2.0,0.0,0.1,0.116,0.133,0.15,0.166,0.183,0.2,\n"
+                "   0.0,2.0,4.0,2.0,0.0,0.3,0.4,0.5]::DOUBLE[], 5);  -- 0\n"
+                "```\n\n"
+                "## Notes\n"
+                "Returns NULL for an invalid/short series; an out-of-range `window` is a "
+                "hard error. The complement of `discord_index`."
+            ),
+            keywords=(
+                "motif, repeated pattern, recurring subsequence, conserved pattern, "
+                "matrix profile, argmin, time series, pattern discovery"
+            ),
+        )
         examples = [
             FunctionExample(
-                sql="SELECT anomaly.motif_index(array_agg(v ORDER BY t), 50) FROM series",
-                description="Index of the most repeated window",
+                sql=(
+                    "SELECT anomaly.motif_index("
+                    "[0.0,2.0,4.0,2.0,0.0,0.1,0.116,0.133,0.15,0.166,0.183,0.2,"
+                    "0.0,2.0,4.0,2.0,0.0,0.3,0.4,0.5]::DOUBLE[], 5)"
+                ),
+                description="Index of the most repeated window (two triangles -> 0).",
             ),
         ]
 
@@ -174,10 +373,58 @@ class ChangePointsFunction(ScalarFunction):
             "penalty); count chosen automatically. NULL for an invalid series."
         )
         categories = ["anomaly", "change_point"]
+        tags = _meta_tags(
+            title="Automatic Change Point Detection",
+            description_llm=(
+                "# change_points (automatic count)\n\n"
+                "Detect **regime changes** in a numeric series and return the interior "
+                "change-point indices as a `BIGINT[]`. This overload "
+                "(`change_points(values)`) chooses the **number** of breakpoints "
+                "automatically with ruptures PELT (`model='rbf'`) and a BIC-style "
+                "`log(n)` penalty.\n\n"
+                "## When to use\n"
+                "Use it when you do not know how many shifts to expect and want the "
+                "algorithm to decide — level shifts, variance changes, distribution "
+                "changes. When you already know the count, use the two-argument overload "
+                "`change_points(values, n_bkps)` for exactly that many breakpoints.\n\n"
+                "## Inputs / outputs\n"
+                "- `values DOUBLE[]` — the series (`array_agg(value ORDER BY t)`).\n"
+                "- Returns `BIGINT[]`, each the index of the first sample of a new "
+                "segment; the trailing `len` sentinel ruptures appends is dropped. "
+                "Empty list when no change is found; `NULL` for an invalid series.\n\n"
+                "## Edge cases\n"
+                "NULL / empty / non-finite / length-<2 series returns `NULL`. The `rbf` "
+                "cost is amplitude-invariant, so the penalty is plain `log(n)` and is not "
+                "scaled by variance (scaling would miss large steps)."
+            ),
+            description_md=(
+                "# Change Points (Automatic)\n\n"
+                "Returns the change-point indices of a series, choosing the count "
+                "automatically (ruptures PELT, `model='rbf'`).\n\n"
+                "## Usage\n"
+                "```sql\n"
+                "SELECT anomaly.change_points(\n"
+                "  [1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]::DOUBLE[]);\n"
+                "  -- [8]\n"
+                "```\n\n"
+                "## Notes\n"
+                "Each index is the first sample of a new segment. Use "
+                "`change_points(values, n_bkps)` to force a fixed number of breakpoints. "
+                "NULL for an invalid series."
+            ),
+            keywords=(
+                "change point, changepoint, regime change, breakpoint, segmentation, "
+                "PELT, ruptures, level shift, structural break, time series"
+            ),
+        )
         examples = [
             FunctionExample(
-                sql="SELECT anomaly.change_points(array_agg(v ORDER BY t)) FROM series",
-                description="Auto-detect change points",
+                sql=(
+                    "SELECT anomaly.change_points("
+                    "[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]"
+                    "::DOUBLE[])"
+                ),
+                description="Auto-detect change points on a single step at index 8 -> [8].",
             ),
         ]
 
@@ -202,10 +449,57 @@ class ChangePointsNFunction(ScalarFunction):
             "exactly n_bkps breakpoints. NULL for an invalid series; error if n_bkps out of range."
         )
         categories = ["anomaly", "change_point"]
+        tags = _meta_tags(
+            title="Fixed Count Change Point Detection",
+            description_llm=(
+                "# change_points (fixed count)\n\n"
+                "Detect exactly `n_bkps` **regime changes** in a numeric series and "
+                "return their interior indices as a `BIGINT[]`. This overload "
+                "(`change_points(values, n_bkps)`) runs ruptures dynamic programming "
+                "(`Dynp`, `model='rbf'`) to find the optimal segmentation into "
+                "`n_bkps + 1` segments.\n\n"
+                "## When to use\n"
+                "Use it when you know how many shifts you want (e.g. split a series into "
+                "two regimes with `n_bkps = 1`). When the count is unknown, use the "
+                "one-argument overload `change_points(values)`, which picks the count "
+                "automatically with PELT.\n\n"
+                "## Inputs / outputs\n"
+                "- `values DOUBLE[]` — the series (`array_agg(value ORDER BY t)`).\n"
+                "- `n_bkps BIGINT` — exact number of breakpoints, `1 <= n_bkps < len`.\n"
+                "- Returns `BIGINT[]` of `n_bkps` indices (first sample of each new "
+                "segment); `NULL` for an invalid series.\n\n"
+                "## Edge cases\n"
+                "NULL / empty / non-finite series returns `NULL`. An `n_bkps` outside "
+                "`[1, len)` raises a clear SQL error (it is constant for the whole "
+                "batch, so surfacing it is correct)."
+            ),
+            description_md=(
+                "# Change Points (Fixed Count)\n\n"
+                "Returns exactly `n_bkps` change-point indices of a series (ruptures "
+                "`Dynp`, `model='rbf'`).\n\n"
+                "## Usage\n"
+                "```sql\n"
+                "SELECT anomaly.change_points(\n"
+                "  [1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]::DOUBLE[], 1);\n"
+                "  -- [8]\n"
+                "```\n\n"
+                "## Notes\n"
+                "Each index is the first sample of a new segment. An `n_bkps` outside "
+                "`[1, len)` is a hard error; NULL for an invalid series."
+            ),
+            keywords=(
+                "change point, changepoint, fixed breakpoints, n_bkps, segmentation, "
+                "Dynp, dynamic programming, ruptures, regime change, time series"
+            ),
+        )
         examples = [
             FunctionExample(
-                sql="SELECT anomaly.change_points(array_agg(v ORDER BY t), 2) FROM series",
-                description="Detect exactly two change points",
+                sql=(
+                    "SELECT anomaly.change_points("
+                    "[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]"
+                    "::DOUBLE[], 1)"
+                ),
+                description="Detect exactly one change point on a single step -> [8].",
             ),
         ]
 
@@ -236,10 +530,56 @@ class ZscoreAnomaliesFunction(ScalarFunction):
             "(light, dependency-free). NULL for an invalid series; error if threshold <= 0."
         )
         categories = ["anomaly", "zscore"]
+        tags = {
+            **_meta_tags(
+                title="Z-Score Outlier Indices",
+                description_llm=(
+                    "# zscore_anomalies\n\n"
+                    "Flag **point outliers** in a numeric series and return their indices "
+                    "as a `BIGINT[]`. A sample is flagged when its absolute z-score "
+                    "(distance from the series mean in population standard deviations) "
+                    "exceeds `threshold`.\n\n"
+                    "## When to use\n"
+                    "Use it as a light, dependency-free first pass for individual outliers "
+                    "(spikes, dropouts) when you do not need subsequence/shape analysis. "
+                    "For anomalous *patterns* use `discord_index`/`matrix_profile`; for "
+                    "*regime shifts* use `change_points`.\n\n"
+                    "## Inputs / outputs\n"
+                    "- `values DOUBLE[]` — the series (`array_agg(value ORDER BY t)`).\n"
+                    "- `threshold DOUBLE` — z-score magnitude cutoff, e.g. `3.0`; must be "
+                    "positive and finite.\n"
+                    "- Returns `BIGINT[]` of flagged indices (empty when nothing exceeds "
+                    "the cutoff); `NULL` for an invalid series.\n\n"
+                    "## Edge cases\n"
+                    "NULL / empty / non-finite series returns `NULL`. A constant series "
+                    "(zero std dev) flags nothing (empty list, not NULL). A non-positive "
+                    "or non-finite `threshold` raises a clear SQL error."
+                ),
+                description_md=(
+                    "# Z-Score Anomalies\n\n"
+                    "Indices whose value is more than `threshold` population standard "
+                    "deviations from the series mean.\n\n"
+                    "## Usage\n"
+                    "```sql\n"
+                    "SELECT anomaly.zscore_anomalies(\n"
+                    "  [10.0,10.0,11.0,9.0,10.0,40.0,10.0,9.0,11.0]::DOUBLE[], 2.0);  -- [5]\n"
+                    "```\n\n"
+                    "## Notes\n"
+                    "A constant series flags nothing (empty list). A non-positive "
+                    "`threshold` is a hard error; NULL for an invalid series."
+                ),
+                keywords=(
+                    "z-score, zscore, outlier, sigma, standard deviation, threshold, "
+                    "spike detection, point anomaly, time series"
+                ),
+            ),
+            # VGI509: a guaranteed-runnable, self-contained executable example.
+            "vgi.executable_examples": _EXECUTABLE_EXAMPLES,
+        }
         examples = [
             FunctionExample(
-                sql="SELECT anomaly.zscore_anomalies(array_agg(v ORDER BY t), 3.0) FROM series",
-                description="Flag samples beyond 3 sigma",
+                sql=("SELECT anomaly.zscore_anomalies([10.0,10.0,11.0,9.0,10.0,40.0,10.0,9.0,11.0]::DOUBLE[], 2.0)"),
+                description="Flag samples beyond 2 sigma (an outlier at index 5).",
             ),
         ]
 

@@ -86,6 +86,11 @@ _ANOMALY_CATALOG = Catalog(
     comment="Time-series anomaly detection: matrix profile, change points, z-score for SQL.",
     source_url="https://github.com/Query-farm/vgi-anomaly",
     tags={
+        "vgi.title": "Time-Series Anomaly Detection",
+        "vgi.keywords": (
+            "anomaly detection, time series, matrix profile, stumpy, discord, motif, "
+            "change point, ruptures, PELT, z-score, outlier, regime change, segmentation"
+        ),
         "vgi.description_llm": _CATALOG_DESCRIPTION_LLM,
         "vgi.description_md": _CATALOG_DESCRIPTION_MD,
         "vgi.author": "Query.Farm",
@@ -99,8 +104,34 @@ _ANOMALY_CATALOG = Catalog(
             name="main",
             comment="Time-series anomaly detection: matrix profile, change points, z-score for SQL",
             tags={
+                "vgi.title": "Anomaly — main",
+                "vgi.keywords": (
+                    "anomaly, matrix profile, discord, motif, change points, z-score, "
+                    "outlier, regime change, time series, segmentation, stumpy, ruptures"
+                ),
+                "vgi.source_url": ("https://github.com/Query-farm/vgi-anomaly/blob/main/anomaly_worker.py"),
                 "vgi.description_llm": _SCHEMA_DESCRIPTION_LLM,
                 "vgi.description_md": _SCHEMA_DESCRIPTION_MD,
+                # VGI123 classifying tags use BARE keys (not vgi.-namespaced).
+                "domain": "time-series",
+                "category": "anomaly-detection",
+                "topic": "matrix-profile-and-change-points",
+                # VGI506 representative example queries (catalog-qualified, runnable).
+                "vgi.example_queries": (
+                    "SELECT anomaly.main.matrix_profile("
+                    "[1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0]::DOUBLE[], 4);\n"
+                    "SELECT anomaly.main.discord_index("
+                    "[1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,"
+                    "3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4);\n"
+                    "SELECT anomaly.main.motif_index("
+                    "[0.0,2.0,4.0,2.0,0.0,0.1,0.116,0.133,0.15,0.166,0.183,0.2,"
+                    "0.0,2.0,4.0,2.0,0.0,0.3,0.4,0.5]::DOUBLE[], 5);\n"
+                    "SELECT anomaly.main.change_points("
+                    "[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]"
+                    "::DOUBLE[]);\n"
+                    "SELECT anomaly.main.zscore_anomalies("
+                    "[10.0,10.0,11.0,9.0,10.0,40.0,10.0,9.0,11.0]::DOUBLE[], 2.0);"
+                ),
             },
             functions=list(SCALAR_FUNCTIONS),
         ),
