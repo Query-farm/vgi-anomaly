@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.13"
 # dependencies = [
-#     "vgi-python[http]>=0.8.4",
+#     "vgi-python[http]>=0.8.5",
 #     "stumpy>=1.12",
 #     "ruptures>=1.1.9",
 #     "numpy",
@@ -42,6 +42,7 @@ Usage:
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from vgi import Worker
@@ -76,8 +77,12 @@ _SCHEMA_DESCRIPTION_LLM = (
 )
 
 _SCHEMA_DESCRIPTION_MD = (
-    "Time-series anomaly-detection scalar functions: matrix profile, discords, motifs, "
-    "change points, and z-score outliers."
+    "Time-series anomaly-detection scalar functions for SQL. Each takes a whole numeric "
+    "series (built with `array_agg(value ORDER BY t)`) and returns an index or array: "
+    "`matrix_profile` (per-subsequence distances), `discord_index` (top anomaly), "
+    "`motif_index` (top repeated pattern), `change_points` (regime shifts via ruptures), "
+    "and `zscore_anomalies` (point outliers beyond a sigma threshold). Use these for "
+    "outlier detection, motif/discord discovery, and regime-change analysis in SQL."
 )
 
 _ANOMALY_CATALOG = Catalog(
@@ -87,9 +92,22 @@ _ANOMALY_CATALOG = Catalog(
     source_url="https://github.com/Query-farm/vgi-anomaly",
     tags={
         "vgi.title": "Time-Series Anomaly Detection",
-        "vgi.keywords": (
-            "anomaly detection, time series, matrix profile, stumpy, discord, motif, "
-            "change point, ruptures, PELT, z-score, outlier, regime change, segmentation"
+        "vgi.keywords": json.dumps(
+            [
+                "anomaly detection",
+                "time series",
+                "matrix profile",
+                "stumpy",
+                "discord",
+                "motif",
+                "change point",
+                "ruptures",
+                "PELT",
+                "z-score",
+                "outlier",
+                "regime change",
+                "segmentation",
+            ]
         ),
         "vgi.doc_llm": _CATALOG_DESCRIPTION_LLM,
         "vgi.doc_md": _CATALOG_DESCRIPTION_MD,
@@ -105,11 +123,22 @@ _ANOMALY_CATALOG = Catalog(
             comment="Time-series anomaly detection: matrix profile, change points, z-score for SQL",
             tags={
                 "vgi.title": "Anomaly — main",
-                "vgi.keywords": (
-                    "anomaly, matrix profile, discord, motif, change points, z-score, "
-                    "outlier, regime change, time series, segmentation, stumpy, ruptures"
+                "vgi.keywords": json.dumps(
+                    [
+                        "anomaly",
+                        "matrix profile",
+                        "discord",
+                        "motif",
+                        "change points",
+                        "z-score",
+                        "outlier",
+                        "regime change",
+                        "time series",
+                        "segmentation",
+                        "stumpy",
+                        "ruptures",
+                    ]
                 ),
-                "vgi.source_url": ("https://github.com/Query-farm/vgi-anomaly/blob/main/anomaly_worker.py"),
                 "vgi.doc_llm": _SCHEMA_DESCRIPTION_LLM,
                 "vgi.doc_md": _SCHEMA_DESCRIPTION_MD,
                 # VGI123 classifying tags use BARE keys (not vgi.-namespaced).

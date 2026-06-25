@@ -38,16 +38,14 @@ from vgi.scalar_function import ScalarFunction
 
 from . import detectors
 
-_VALUES_DOC = "Numeric series as a DOUBLE[] (build with array_agg(value ORDER BY t))."
-_WINDOW_DOC = "Subsequence length for the matrix profile (>= 3 and < series length)."
+_VALUES_DOC = (
+    "The whole time series to analyze, ordered by time. Build it in SQL with "
+    "array_agg(value ORDER BY t) or pass a literal list; one analysis runs per row/group."
+)
+_WINDOW_DOC = "Subsequence length for the matrix profile; must be at least 3 and less than the series length."
 
 _LIST_DOUBLE = pa.list_(pa.float64())
 _LIST_BIGINT = pa.list_(pa.int64())
-
-# Base URL for vgi.source_url (VGI128) links into the implementing source file.
-_SOURCE_BASE = "https://github.com/Query-farm/vgi-anomaly/blob/main/vgi_anomaly"
-_SCALARS_SOURCE_URL = f"{_SOURCE_BASE}/scalars.py"
-_DETECTORS_SOURCE_URL = f"{_SOURCE_BASE}/detectors.py"
 
 # VGI509: at least one object must ship vgi.executable_examples — a JSON list of
 # {"description","sql"} objects whose SQL is catalog-qualified and self-contained
@@ -84,23 +82,23 @@ def _meta_tags(
     title: str,
     description_llm: str,
     description_md: str,
-    keywords: str,
+    keywords: list[str],
 ) -> dict[str, str]:
     """Build the strict-profile per-object tag set shared by every scalar.
 
     Every function carries VGI124 ``vgi.title`` (a human display name that is
     intentionally *not* the machine name, to satisfy VGI125), VGI112
     ``vgi.doc_llm`` and VGI113 ``vgi.doc_md`` (Markdown
-    narratives for agents and humans respectively), VGI126 ``vgi.keywords``
-    (comma-separated synonyms), and VGI128 ``vgi.source_url`` (the file that
-    implements the detection logic).
+    narratives for agents and humans respectively), and VGI126 ``vgi.keywords``
+    (a JSON array of synonym strings, per VGI138). Per-object
+    ``vgi.source_url`` is intentionally omitted (VGI139): the canonical
+    ``source_url`` lives only on the catalog object.
     """
     return {
         "vgi.title": title,
         "vgi.doc_llm": description_llm,
         "vgi.doc_md": description_md,
-        "vgi.keywords": keywords,
-        "vgi.source_url": _DETECTORS_SOURCE_URL,
+        "vgi.keywords": json.dumps(keywords),
     }
 
 
@@ -181,10 +179,18 @@ class MatrixProfileFunction(ScalarFunction):
                 "for the discord or `argmin` for the motif. NULL for an invalid/short "
                 "series; an out-of-range `window` is a hard error."
             ),
-            keywords=(
-                "matrix profile, stumpy, stump, z-normalized distance, subsequence, "
-                "anomaly, discord, motif, time series, similarity"
-            ),
+            keywords=[
+                "matrix profile",
+                "stumpy",
+                "stump",
+                "z-normalized distance",
+                "subsequence",
+                "anomaly",
+                "discord",
+                "motif",
+                "time series",
+                "similarity",
+            ],
         )
         examples = [
             FunctionExample(
@@ -255,10 +261,16 @@ class DiscordIndexFunction(ScalarFunction):
                 "Returns NULL for an invalid/short series; an out-of-range `window` is a "
                 "hard error. The index points at the first sample of the discord window."
             ),
-            keywords=(
-                "discord, anomaly index, most anomalous, outlier subsequence, matrix "
-                "profile, argmax, time series, novelty detection"
-            ),
+            keywords=[
+                "discord",
+                "anomaly index",
+                "most anomalous",
+                "outlier subsequence",
+                "matrix profile",
+                "argmax",
+                "time series",
+                "novelty detection",
+            ],
         )
         examples = [
             FunctionExample(
@@ -330,10 +342,16 @@ class MotifIndexFunction(ScalarFunction):
                 "Returns NULL for an invalid/short series; an out-of-range `window` is a "
                 "hard error. The complement of `discord_index`."
             ),
-            keywords=(
-                "motif, repeated pattern, recurring subsequence, conserved pattern, "
-                "matrix profile, argmin, time series, pattern discovery"
-            ),
+            keywords=[
+                "motif",
+                "repeated pattern",
+                "recurring subsequence",
+                "conserved pattern",
+                "matrix profile",
+                "argmin",
+                "time series",
+                "pattern discovery",
+            ],
         )
         examples = [
             FunctionExample(
@@ -412,10 +430,18 @@ class ChangePointsFunction(ScalarFunction):
                 "`change_points(values, n_bkps)` to force a fixed number of breakpoints. "
                 "NULL for an invalid series."
             ),
-            keywords=(
-                "change point, changepoint, regime change, breakpoint, segmentation, "
-                "PELT, ruptures, level shift, structural break, time series"
-            ),
+            keywords=[
+                "change point",
+                "changepoint",
+                "regime change",
+                "breakpoint",
+                "segmentation",
+                "PELT",
+                "ruptures",
+                "level shift",
+                "structural break",
+                "time series",
+            ],
         )
         examples = [
             FunctionExample(
@@ -487,10 +513,18 @@ class ChangePointsNFunction(ScalarFunction):
                 "Each index is the first sample of a new segment. An `n_bkps` outside "
                 "`[1, len)` is a hard error; NULL for an invalid series."
             ),
-            keywords=(
-                "change point, changepoint, fixed breakpoints, n_bkps, segmentation, "
-                "Dynp, dynamic programming, ruptures, regime change, time series"
-            ),
+            keywords=[
+                "change point",
+                "changepoint",
+                "fixed breakpoints",
+                "n_bkps",
+                "segmentation",
+                "Dynp",
+                "dynamic programming",
+                "ruptures",
+                "regime change",
+                "time series",
+            ],
         )
         examples = [
             FunctionExample(
@@ -568,10 +602,17 @@ class ZscoreAnomaliesFunction(ScalarFunction):
                     "A constant series flags nothing (empty list). A non-positive "
                     "`threshold` is a hard error; NULL for an invalid series."
                 ),
-                keywords=(
-                    "z-score, zscore, outlier, sigma, standard deviation, threshold, "
-                    "spike detection, point anomaly, time series"
-                ),
+                keywords=[
+                    "z-score",
+                    "zscore",
+                    "outlier",
+                    "sigma",
+                    "standard deviation",
+                    "threshold",
+                    "spike detection",
+                    "point anomaly",
+                    "time series",
+                ],
             ),
             # VGI509: a guaranteed-runnable, self-contained executable example.
             "vgi.executable_examples": _EXECUTABLE_EXAMPLES,
