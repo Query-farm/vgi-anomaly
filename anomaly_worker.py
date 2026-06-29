@@ -62,6 +62,7 @@ _CATALOG_DESCRIPTION_LLM = (
 
 _CATALOG_DESCRIPTION_MD = (
     "# Time-Series Anomaly Detection in SQL\n\n"
+    "![STUMPY logo](https://raw.githubusercontent.com/TDAmeritrade/stumpy/main/docs/images/stumpy_logo_small.png)\n\n"
     "Find anomalies, motifs, discords, and regime changes in time-series data "
     "directly in DuckDB SQL — no Python notebook, no data export, just `matrix_profile`, "
     "`discord_index`, `motif_index`, `change_points`, and `zscore_anomalies` over any "
