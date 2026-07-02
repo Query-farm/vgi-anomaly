@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.13"
 # dependencies = [
-#     "vgi-python[http]>=0.8.5",
+#     "vgi-python[http]>=0.9.0",
 #     "stumpy>=1.12",
 #     "ruptures>=1.1.9",
 #     "numpy",
@@ -43,7 +43,8 @@ Usage:
 from __future__ import annotations
 
 import json
-from typing import Any
+import logging
+import threading
 
 from vgi import Worker
 from vgi.catalog import Catalog, Schema
@@ -64,38 +65,44 @@ _CATALOG_DESCRIPTION_MD = (
     "# Time-Series Anomaly Detection in SQL\n\n"
     "![STUMPY logo](https://raw.githubusercontent.com/TDAmeritrade/stumpy/main/docs/images/stumpy_logo_small.png)\n\n"
     "Find anomalies, motifs, discords, and regime changes in time-series data "
-    "directly in DuckDB SQL — no Python notebook, no data export, just `matrix_profile`, "
-    "`discord_index`, `motif_index`, `change_points`, and `zscore_anomalies` over any "
-    "numeric series.\n\n"
+    "directly in DuckDB SQL — no Python notebook, no data export, no round trip to a "
+    "separate data-science stack.\n\n"
+    "## What it is\n\n"
     "The `anomaly` extension brings industrial-strength time-series anomaly detection to "
     "your SQL queries. It is for data engineers, analysts, and SREs who keep their "
     "metrics, sensor readings, financial ticks, and log volumes in DuckDB and want to "
     "spot the unusual subsequence, the repeated pattern, the structural break, or the "
     "single outlier without leaving the database. Every detector runs server-side inside "
     "a VGI worker that DuckDB attaches over Apache Arrow, so the same analysis that "
-    "normally lives in a data-science script becomes an ordinary, composable SQL function.\n\n"
+    "normally lives in a data-science script becomes an ordinary, composable SQL "
+    "function.\n\n"
+    "## Key concepts\n\n"
+    "- **Matrix profile** — for every fixed-length subsequence, its z-normalized "
+    "distance to its nearest neighbour. The largest distances are *discords* "
+    "(anomalies); the smallest are *motifs* (repeated patterns). This is the modern "
+    "foundation for shape-based anomaly and pattern discovery.\n"
+    "- **Change points** — structural breaks where a series shifts from one regime to "
+    "another (a level shift, a variance change), found by penalized segmentation.\n"
+    "- **Point outliers** — individual samples that sit far from the series mean, a "
+    "light first pass that needs no subsequence analysis.\n\n"
+    "## When to use it\n\n"
+    "Reach for this worker for outlier detection on metrics and IoT sensor data, "
+    "motif/discord discovery in financial or operational series, segmentation of "
+    "telemetry into stable regimes, and general series quality checks — all expressed as "
+    "plain, composable SQL over a series you assemble with `array_agg`.\n\n"
+    "## Built on\n\n"
     "Under the hood the extension stands on three best-in-class scientific Python "
-    "libraries. Matrix-profile analysis — the modern foundation for motif and discord "
-    "discovery — is powered by [STUMPY](https://github.com/TDAmeritrade/stumpy) "
+    "libraries. Matrix-profile analysis is powered by "
+    "[STUMPY](https://github.com/TDAmeritrade/stumpy) "
     "([documentation](https://stumpy.readthedocs.io/)), whose numba-accelerated "
     "implementation of the [Matrix Profile](https://www.cs.ucr.edu/~eamonn/MatrixProfile.html) "
-    "computes the distance from every subsequence to its nearest neighbor. Change-point "
+    "computes the distance from every subsequence to its nearest neighbour. Change-point "
     "(regime-shift) detection uses [ruptures](https://github.com/deepcharles/ruptures) "
     "([documentation](https://centre-borelli.github.io/ruptures-docs/)) with its PELT and "
-    "Dynp search algorithms, and the lightweight point-outlier check is plain "
-    "[NumPy](https://numpy.org/) ([documentation](https://numpy.org/doc/stable/)) "
-    "z-scoring.\n\n"
-    "Each function takes a whole numeric series as a single `DOUBLE[]` argument that you "
-    "build in SQL with `array_agg(value ORDER BY t)` (or a `[...]::DOUBLE[]` literal), so "
-    "the detectors compose cleanly and run once per group. Use `matrix_profile(series, "
-    "window)` to compute per-subsequence nearest-neighbor distances; `discord_index(series, "
-    "window)` to locate the single most anomalous subsequence; `motif_index(series, window)` "
-    "to find the most-repeated pattern; `change_points(series)` or `change_points(series, "
-    "n_bkps)` to detect regime shifts via ruptures; and `zscore_anomalies(series, threshold)` "
-    "to flag individual points beyond a sigma threshold. Typical use cases include outlier "
-    "detection on metrics and IoT sensor data, motif/discord discovery in financial or "
-    "operational series, segmentation of telemetry into stable regimes, and series quality "
-    "checks — all expressed as plain SQL."
+    "dynamic-programming search algorithms, and the lightweight point-outlier check is "
+    "plain [NumPy](https://numpy.org/) ([documentation](https://numpy.org/doc/stable/)) "
+    "z-scoring. List the schema to discover the individual detector functions and their "
+    "signatures."
 )
 
 _SCHEMA_DESCRIPTION_LLM = (
@@ -105,13 +112,81 @@ _SCHEMA_DESCRIPTION_LLM = (
 )
 
 _SCHEMA_DESCRIPTION_MD = (
-    "Time-series anomaly-detection scalar functions for SQL. Each takes a whole numeric "
-    "series (built with `array_agg(value ORDER BY t)`) and returns an index or array: "
-    "`matrix_profile` (per-subsequence distances), `discord_index` (top anomaly), "
-    "`motif_index` (top repeated pattern), `change_points` (regime shifts via ruptures), "
-    "and `zscore_anomalies` (point outliers beyond a sigma threshold). Use these for "
-    "outlier detection, motif/discord discovery, and regime-change analysis in SQL."
+    "# Anomaly Detectors\n\n"
+    "Scalar functions that analyse a whole numeric time series for anomalies, repeated "
+    "patterns, and regime changes. Each one takes the series as a single array argument "
+    "you assemble in SQL, so a detector is just another expression you can compose, "
+    "filter, and join against.\n\n"
+    "## Concepts\n\n"
+    "- **Matrix profile** — shape-based analysis that surfaces the most anomalous "
+    "subsequence (discord) and the most repeated one (motif) for a chosen window.\n"
+    "- **Change points** — penalized segmentation that locates structural breaks / "
+    "regime shifts in the level or distribution of the series.\n"
+    "- **Point outliers** — a light, dependency-free z-score pass for individual "
+    "spikes and dropouts.\n\n"
+    "## Using it\n\n"
+    "Build the input with `array_agg(value ORDER BY t)` (or a bracketed array literal) "
+    "so the whole series is passed in time order, then apply the detector that matches "
+    "the question — one anomalous window, one recurring pattern, the regime boundaries, "
+    "or the individual outlier positions. List this schema to see each function's exact "
+    "signature and per-argument documentation."
 )
+
+# VGI152/VGI920: an analyst task suite so `vgi-lint simulate` can measure how
+# well an agent, seeing only the catalog overview, actually uses this worker.
+# Each prompt embeds the exact series and parameter, and every `reference_sql`
+# is catalog-qualified, self-contained, and deterministic (fixed integer index
+# outputs), so the reference is sound and re-runnable. `ignore_column_names`
+# grades on values only (the natural answer is a single array/scalar).
+_AGENT_TEST_TASKS = json.dumps(
+    [
+        {
+            "name": "point_outlier_indices",
+            "prompt": (
+                "For the numeric series [10, 10, 11, 9, 10, 40, 10, 9, 11] (already in time "
+                "order), use the z-score point-outlier detector with a threshold of 2 to find "
+                "the samples that lie more than 2 population standard deviations from the mean. "
+                "Return the detector's result directly as a single array value in one row (the "
+                "list of zero-based outlier indices) — do not UNNEST it into one row per index."
+            ),
+            "reference_sql": (
+                "SELECT anomaly.main.zscore_anomalies("
+                "[10.0,10.0,11.0,9.0,10.0,40.0,10.0,9.0,11.0]::DOUBLE[], 2.0) AS outlier_indices"
+            ),
+            "ignore_column_names": True,
+        },
+        {
+            "name": "regime_change_index",
+            "prompt": (
+                "The series [1, 1, 1, 1, 1, 1, 1, 1, 9, 9, 9, 9, 9, 9, 9, 9] steps up once. "
+                "Automatically detect its change point(s) and return the index/indices where a "
+                "new regime begins."
+            ),
+            "reference_sql": (
+                "SELECT anomaly.main.change_points("
+                "[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]::DOUBLE[]) "
+                "AS change_points"
+            ),
+            "ignore_column_names": True,
+        },
+        {
+            "name": "top_discord_start",
+            "prompt": (
+                "In the 25-point series "
+                "[1,2,3,4,3,2,1,2,3,4,3,2,1,2,3,4,3,2,50,2,3,4,3,2,1], using a subsequence "
+                "window of 4, return the zero-based start index of the single most anomalous "
+                "window (the top discord)."
+            ),
+            "reference_sql": (
+                "SELECT anomaly.main.discord_index("
+                "[1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,"
+                "3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4) AS discord_start"
+            ),
+            "ignore_column_names": True,
+        },
+    ]
+)
+
 
 _ANOMALY_CATALOG = Catalog(
     name="anomaly",
@@ -144,6 +219,8 @@ _ANOMALY_CATALOG = Catalog(
         "vgi.license": "MIT",
         "vgi.support_contact": "https://github.com/Query-farm/vgi-anomaly/issues",
         "vgi.support_policy_url": "https://github.com/Query-farm/vgi-anomaly/blob/main/README.md",
+        # VGI152/VGI920: analyst task suite for `vgi-lint simulate`.
+        "vgi.agent_test_tasks": _AGENT_TEST_TASKS,
     },
     schemas=[
         Schema(
@@ -169,6 +246,35 @@ _ANOMALY_CATALOG = Catalog(
                 ),
                 "vgi.doc_llm": _SCHEMA_DESCRIPTION_LLM,
                 "vgi.doc_md": _SCHEMA_DESCRIPTION_MD,
+                # VGI413: ordered category registry for this schema. Every
+                # function declares a matching `vgi.category`; categories drive
+                # the worker's navigation, listing sections, and SEO copy.
+                "vgi.categories": json.dumps(
+                    [
+                        {
+                            "name": "Matrix Profile",
+                            "description": (
+                                "Shape-based analysis over a sliding window: locate the most "
+                                "anomalous subsequence (discord) and the most repeated one "
+                                "(motif), or compute the full nearest-neighbour distance profile."
+                            ),
+                        },
+                        {
+                            "name": "Change Points",
+                            "description": (
+                                "Regime-shift and structural-break detection via ruptures "
+                                "penalized segmentation, with automatic or fixed breakpoint counts."
+                            ),
+                        },
+                        {
+                            "name": "Outliers",
+                            "description": (
+                                "Lightweight, dependency-free per-point outlier flagging by "
+                                "z-score distance from the series mean."
+                            ),
+                        },
+                    ]
+                ),
                 # VGI123 classifying tags use BARE keys (not vgi.-namespaced).
                 "domain": "time-series",
                 "category": "anomaly-detection",
@@ -201,18 +307,37 @@ class AnomalyWorker(Worker):
 
     catalog = _ANOMALY_CATALOG
 
-    def run(self, otel_config: Any = None) -> None:
-        """JIT-compile the numba kernels once, then serve.
+    def __init__(self, *, quiet: bool = False, log_level: int = logging.INFO) -> None:
+        """Construct the worker and JIT-compile the numba kernels in the background.
 
-        ``stumpy.stump`` is numba-JIT compiled, so without warming the first real
-        query of every ATTACH pays a multi-second compile inline -- a window in
-        which a worker-pool teardown SIGTERM (or a loaded host) can kill the run
-        mid-assertion and record a spurious E2E failure. Warming at spawn moves
-        that one-time cost ahead of any query, keeping the SQL suite deterministic
-        without changing any output. Best-effort; never fatal.
+        ``stumpy.stump`` is numba-JIT compiled, so the first stumpy query in a
+        fresh process pays a multi-second compile inline -- a window in which a
+        worker-pool teardown SIGTERM (or a loaded host) can kill the run
+        mid-assertion and record a spurious E2E failure.
+
+        Warming here in ``__init__`` -- rather than in ``run()`` -- covers *every*
+        transport. The stdio path calls ``run()``, but the ``--unix`` / ``--tcp``
+        launcher paths that the vgi DuckDB extension uses to spawn a command
+        ``LOCATION`` build the RPC server and serve directly, never calling
+        ``run()``. Every transport instantiates the worker, so ``__init__`` is the
+        one hook that always runs.
+
+        The warm-up runs in a **daemon thread** so process spawn returns
+        immediately: a pooled worker becomes ready in milliseconds and its first
+        (non-stumpy) query is not blocked behind the ~10 s compile, while the
+        stumpy kernels finish compiling in the background before any real
+        matrix-profile query needs them. :func:`detectors._profile` holds
+        ``_STUMP_LOCK``, so a real stumpy query that races the warm-up simply
+        serializes behind it (numba's workqueue layer is not re-entrant). It only
+        warms JIT caches -- never changes output -- and is best-effort (failures
+        are swallowed inside :func:`detectors.warm_up`).
+
+        Args:
+            quiet: Suppress startup logging (or set ``VGI_QUIET=1``).
+            log_level: Numeric level for the ``vgi`` logger hierarchy.
         """
-        detectors.warm_up()
-        super().run(otel_config=otel_config)
+        super().__init__(quiet=quiet, log_level=log_level)
+        threading.Thread(target=detectors.warm_up, name="numba-warmup", daemon=True).start()
 
 
 def main() -> None:

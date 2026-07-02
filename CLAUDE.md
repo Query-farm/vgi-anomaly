@@ -72,12 +72,22 @@ arrive via `ConstParam`; pass them as `pa.scalar(x, type=pa.int64())` /
 ## numba warm-up (don't remove)
 
 `stumpy.stump` is numba-JIT compiled: the FIRST call in a fresh process compiles
-(multi-second). `AnomalyWorker.run()` calls `detectors.warm_up()` before serving,
-running each entry point once on a tiny dummy series. This moves the compile to
-process spawn so the first real query is fast and the E2E suite doesn't flake
-under load (a teardown SIGTERM landing during a mid-query compile records a
-spurious failure). It only warms JIT caches — never changes output — and is
-best-effort (failures swallowed). Heavy libs are imported once at module load.
+(multi-second). `AnomalyWorker.__init__()` calls `detectors.warm_up()` before
+serving, running each entry point once on a tiny dummy series. It lives in
+`__init__` (NOT `run()`) on purpose: the stdio path calls `run()`, but the
+`--unix` / `--tcp` launcher paths the vgi extension uses to spawn a command
+`LOCATION` build the RPC server and serve directly and never call `run()`. Every
+transport instantiates the worker, so `__init__` is the one hook that always
+moves the compile to process spawn — the first real query is fast, the E2E suite
+doesn't flake under load (a teardown SIGTERM landing during a mid-query compile
+records a spurious failure), and the linter's slow-example gate stays green. It
+only warms JIT caches — never changes output — and is best-effort (failures
+swallowed). Heavy libs are imported once at module load.
+
+`stumpy.stump` is also a numba `parallel=True` kernel and numba's default
+workqueue threading layer aborts the process if entered from two threads at once;
+`detectors._profile` serializes every stumpy call behind `_STUMP_LOCK` so
+concurrent DuckDB/lint cursors can't crash the worker.
 
 ## Sharp edges (learned the hard way)
 

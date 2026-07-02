@@ -51,19 +51,19 @@ _LIST_BIGINT = pa.list_(pa.int64())
 # {"description","sql"} objects whose SQL is catalog-qualified and self-contained
 # (no external tables) so the linter can execute every one against the worker.
 # expected_result is optional and intentionally omitted.
+#
+# These deliberately exercise the z-score and change-point detectors only: both
+# are numpy/ruptures (no numba JIT), so each runs in milliseconds even on a
+# freshly-spawned worker. The matrix-profile family (stumpy) pays a one-time
+# ~10 s numba compile per process, which would trip the linter's slow-example
+# gate (VGI908) if it landed inside an executable example; those detectors are
+# instead demonstrated by their per-function ``examples`` (executed as VGI901,
+# which is not slow-gated) and by the ``top_discord_start`` agent test task.
 _EXECUTABLE_EXAMPLES = json.dumps(
     [
         {
             "description": "Flag z-score outliers beyond 2 sigma; the 40.0 spike is index 5.",
             "sql": ("SELECT anomaly.zscore_anomalies([10.0,10.0,11.0,9.0,10.0,40.0,10.0,9.0,11.0]::DOUBLE[], 2.0)"),
-        },
-        {
-            "description": "Top discord (most anomalous window) of a 25-point series, window 4.",
-            "sql": (
-                "SELECT anomaly.discord_index("
-                "[1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,"
-                "3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4)"
-            ),
         },
         {
             "description": "Automatic change-point detection on a single step at index 8.",
@@ -73,6 +73,14 @@ _EXECUTABLE_EXAMPLES = json.dumps(
                 "::DOUBLE[])"
             ),
         },
+        {
+            "description": "Split the same step into exactly one fixed change point -> [8].",
+            "sql": (
+                "SELECT anomaly.change_points("
+                "[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]"
+                "::DOUBLE[], 1)"
+            ),
+        },
     ]
 )
 
@@ -80,6 +88,7 @@ _EXECUTABLE_EXAMPLES = json.dumps(
 def _meta_tags(
     *,
     title: str,
+    category: str,
     description_llm: str,
     description_md: str,
     keywords: list[str],
@@ -89,13 +98,25 @@ def _meta_tags(
     Every function carries VGI124 ``vgi.title`` (a human display name that is
     intentionally *not* the machine name, to satisfy VGI125), VGI112
     ``vgi.doc_llm`` and VGI113 ``vgi.doc_md`` (Markdown
-    narratives for agents and humans respectively), and VGI126 ``vgi.keywords``
-    (a JSON array of synonym strings, per VGI138). Per-object
-    ``vgi.source_url`` is intentionally omitted (VGI139): the canonical
-    ``source_url`` lives only on the catalog object.
+    narratives for agents and humans respectively), VGI126 ``vgi.keywords``
+    (a JSON array of synonym strings, per VGI138), and VGI413 ``vgi.category``
+    naming one of the schema's ``vgi.categories``. Per-object ``vgi.source_url``
+    is intentionally omitted (VGI139): the canonical ``source_url`` lives only on
+    the catalog object.
+
+    Args:
+        title: Human display name (not the machine function name).
+        category: Schema category this function belongs to.
+        description_llm: Markdown narrative for agents (``vgi.doc_llm``).
+        description_md: Markdown narrative for humans (``vgi.doc_md``).
+        keywords: Synonym strings serialized into ``vgi.keywords``.
+
+    Returns:
+        The per-object tag dictionary.
     """
     return {
         "vgi.title": title,
+        "vgi.category": category,
         "vgi.doc_llm": description_llm,
         "vgi.doc_md": description_md,
         "vgi.keywords": json.dumps(keywords),
@@ -142,6 +163,7 @@ class MatrixProfileFunction(ScalarFunction):
         categories = ["anomaly", "matrix_profile"]
         tags = _meta_tags(
             title="Matrix Profile of Series",
+            category="Matrix Profile",
             description_llm=(
                 "# matrix_profile\n\n"
                 "Compute the **matrix profile** of a numeric time series with STUMP "
@@ -155,7 +177,7 @@ class MatrixProfileFunction(ScalarFunction):
                 "small values mark **motifs** (repeated patterns). Prefer the dedicated "
                 "`discord_index` / `motif_index` helpers if you only need the top index.\n\n"
                 "## Inputs / outputs\n"
-                "- `values DOUBLE[]` — the whole series, built in SQL with "
+                "- **values** — the whole series as a `DOUBLE[]`, built in SQL with "
                 "`array_agg(value ORDER BY t)` or a `[...]::DOUBLE[]` literal.\n"
                 "- `window BIGINT` — subsequence length, constant per call, "
                 "`3 <= window < len(values)`.\n"
@@ -227,6 +249,7 @@ class DiscordIndexFunction(ScalarFunction):
         categories = ["anomaly", "matrix_profile"]
         tags = _meta_tags(
             title="Top Discord Start Index",
+            category="Matrix Profile",
             description_llm=(
                 "# discord_index\n\n"
                 "Return the **start index of the top discord** of a numeric series: the "
@@ -239,7 +262,8 @@ class DiscordIndexFunction(ScalarFunction):
                 "full matrix profile. For the full distance vector use `matrix_profile`; "
                 "for the *most repeated* pattern use `motif_index`.\n\n"
                 "## Inputs / outputs\n"
-                "- `values DOUBLE[]` — the series (`array_agg(value ORDER BY t)`).\n"
+                "- **values** — the series as a `DOUBLE[]`, assembled with "
+                "`array_agg(value ORDER BY t)`.\n"
                 "- `window BIGINT` — subsequence length, `3 <= window < len(values)`.\n"
                 "- Returns a `BIGINT` start index (0-based), or `NULL`.\n\n"
                 "## Edge cases\n"
@@ -307,6 +331,7 @@ class MotifIndexFunction(ScalarFunction):
         categories = ["anomaly", "matrix_profile"]
         tags = _meta_tags(
             title="Top Motif Start Index",
+            category="Matrix Profile",
             description_llm=(
                 "# motif_index\n\n"
                 "Return the **start index of the top motif** of a numeric series: the "
@@ -319,7 +344,8 @@ class MotifIndexFunction(ScalarFunction):
                 "complement of `discord_index` (anomalies): motif = smallest distance, "
                 "discord = largest distance.\n\n"
                 "## Inputs / outputs\n"
-                "- `values DOUBLE[]` — the series (`array_agg(value ORDER BY t)`).\n"
+                "- **values** — the series as a `DOUBLE[]`, assembled with "
+                "`array_agg(value ORDER BY t)`.\n"
                 "- `window BIGINT` — subsequence length, `3 <= window < len(values)`.\n"
                 "- Returns a `BIGINT` start index (0-based) of one copy of the motif, "
                 "or `NULL`.\n\n"
@@ -393,6 +419,7 @@ class ChangePointsFunction(ScalarFunction):
         categories = ["anomaly", "change_point"]
         tags = _meta_tags(
             title="Automatic Change Point Detection",
+            category="Change Points",
             description_llm=(
                 "# change_points (automatic count)\n\n"
                 "Detect **regime changes** in a numeric series and return the interior "
@@ -406,7 +433,8 @@ class ChangePointsFunction(ScalarFunction):
                 "changes. When you already know the count, use the two-argument overload "
                 "`change_points(values, n_bkps)` for exactly that many breakpoints.\n\n"
                 "## Inputs / outputs\n"
-                "- `values DOUBLE[]` — the series (`array_agg(value ORDER BY t)`).\n"
+                "- **values** — the series as a `DOUBLE[]`, assembled with "
+                "`array_agg(value ORDER BY t)`.\n"
                 "- Returns `BIGINT[]`, each the index of the first sample of a new "
                 "segment; the trailing `len` sentinel ruptures appends is dropped. "
                 "Empty list when no change is found; `NULL` for an invalid series.\n\n"
@@ -477,6 +505,7 @@ class ChangePointsNFunction(ScalarFunction):
         categories = ["anomaly", "change_point"]
         tags = _meta_tags(
             title="Fixed Count Change Point Detection",
+            category="Change Points",
             description_llm=(
                 "# change_points (fixed count)\n\n"
                 "Detect exactly `n_bkps` **regime changes** in a numeric series and "
@@ -490,7 +519,8 @@ class ChangePointsNFunction(ScalarFunction):
                 "one-argument overload `change_points(values)`, which picks the count "
                 "automatically with PELT.\n\n"
                 "## Inputs / outputs\n"
-                "- `values DOUBLE[]` — the series (`array_agg(value ORDER BY t)`).\n"
+                "- **values** — the series as a `DOUBLE[]`, assembled with "
+                "`array_agg(value ORDER BY t)`.\n"
                 "- `n_bkps BIGINT` — exact number of breakpoints, `1 <= n_bkps < len`.\n"
                 "- Returns `BIGINT[]` of `n_bkps` indices (first sample of each new "
                 "segment); `NULL` for an invalid series.\n\n"
@@ -567,6 +597,7 @@ class ZscoreAnomaliesFunction(ScalarFunction):
         tags = {
             **_meta_tags(
                 title="Z-Score Outlier Indices",
+                category="Outliers",
                 description_llm=(
                     "# zscore_anomalies\n\n"
                     "Flag **point outliers** in a numeric series and return their indices "
@@ -579,7 +610,8 @@ class ZscoreAnomaliesFunction(ScalarFunction):
                     "For anomalous *patterns* use `discord_index`/`matrix_profile`; for "
                     "*regime shifts* use `change_points`.\n\n"
                     "## Inputs / outputs\n"
-                    "- `values DOUBLE[]` — the series (`array_agg(value ORDER BY t)`).\n"
+                    "- **values** — the series as a `DOUBLE[]`, assembled with "
+                    "`array_agg(value ORDER BY t)`.\n"
                     "- `threshold DOUBLE` — z-score magnitude cutoff, e.g. `3.0`; must be "
                     "positive and finite.\n"
                     "- Returns `BIGINT[]` of flagged indices (empty when nothing exceeds "

@@ -37,10 +37,21 @@ Robustness contract (shared by every function):
 from __future__ import annotations
 
 import math
+import threading
 
 import numpy as np
 import ruptures as rpt
 import stumpy
+
+# ``stumpy.stump`` is a numba ``parallel=True`` kernel. Numba's default
+# "workqueue" threading layer is NOT re-entrant: calling a parallel kernel from
+# more than one Python thread at once aborts the whole process ("Concurrent
+# access has been detected"). A VGI worker serves DuckDB/lint queries across
+# several cursors concurrently, so guard every stumpy call with a process-wide
+# lock. The matrix profile itself already parallelises internally across cores,
+# so serialising the (typically sub-second) calls costs almost nothing while
+# making the worker crash-proof under concurrent SQL.
+_STUMP_LOCK = threading.Lock()
 
 # A length-n series costs O(n^2) for the matrix profile; cap it so a single
 # pathological row cannot wedge the worker. 1e6 samples is far above any sane
@@ -83,8 +94,15 @@ def _check_window(window: int, n: int) -> None:
 
 
 def _profile(arr: np.ndarray, window: int) -> np.ndarray:
-    """Matrix-profile distances (column 0 of stumpy.stump) as float64."""
-    mp = stumpy.stump(arr, m=window)
+    """Matrix-profile distances (column 0 of stumpy.stump) as float64.
+
+    Serialised with :data:`_STUMP_LOCK`: ``stumpy.stump`` is a numba
+    ``parallel=True`` kernel and numba's default workqueue threading layer is
+    not safe to enter from multiple Python threads at once, so concurrent worker
+    cursors must not run two matrix-profile computations simultaneously.
+    """
+    with _STUMP_LOCK:
+        mp = stumpy.stump(arr, m=window)
     return np.asarray(mp[:, 0], dtype=np.float64)
 
 
