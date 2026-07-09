@@ -5,9 +5,9 @@ Each function operates on a whole numeric **series** passed as a single
 ``array_agg(value ORDER BY t)`` -- and returns either a single index or an
 array. This composes cleanly without subquery table arguments::
 
-    SELECT anomaly.matrix_profile(array_agg(v ORDER BY t), 50) FROM series;
-    SELECT anomaly.discord_index(array_agg(v ORDER BY t), 50) FROM series;
-    SELECT anomaly.change_points(array_agg(v ORDER BY t))      FROM series;
+    SELECT anomaly.main.matrix_profile(array_agg(v ORDER BY t), 50) FROM series;
+    SELECT anomaly.main.discord_index(array_agg(v ORDER BY t), 50) FROM series;
+    SELECT anomaly.main.change_points(array_agg(v ORDER BY t))      FROM series;
 
 A note on argument syntax
 -------------------------
@@ -63,12 +63,14 @@ _EXECUTABLE_EXAMPLES = json.dumps(
     [
         {
             "description": "Flag z-score outliers beyond 2 sigma; the 40.0 spike is index 5.",
-            "sql": ("SELECT anomaly.zscore_anomalies([10.0,10.0,11.0,9.0,10.0,40.0,10.0,9.0,11.0]::DOUBLE[], 2.0)"),
+            "sql": (
+                "SELECT anomaly.main.zscore_anomalies([10.0,10.0,11.0,9.0,10.0,40.0,10.0,9.0,11.0]::DOUBLE[], 2.0)"
+            ),
         },
         {
             "description": "Automatic change-point detection on a single step at index 8.",
             "sql": (
-                "SELECT anomaly.change_points("
+                "SELECT anomaly.main.change_points("
                 "[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]"
                 "::DOUBLE[])"
             ),
@@ -76,7 +78,7 @@ _EXECUTABLE_EXAMPLES = json.dumps(
         {
             "description": "Split the same step into exactly one fixed change point -> [8].",
             "sql": (
-                "SELECT anomaly.change_points("
+                "SELECT anomaly.main.change_points("
                 "[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]"
                 "::DOUBLE[], 1)"
             ),
@@ -193,9 +195,10 @@ class MatrixProfileFunction(ScalarFunction):
                 "`window`, computed with `stumpy.stump`.\n\n"
                 "## Usage\n"
                 "```sql\n"
-                "SELECT anomaly.matrix_profile([1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0]::DOUBLE[], 4);\n"
-                "SELECT anomaly.matrix_profile(array_agg(v ORDER BY t), 50) FROM series;\n"
+                "SELECT anomaly.main.matrix_profile([1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0]::DOUBLE[], 4);\n"
                 "```\n\n"
+                "Assemble the series from a table with `array_agg(v ORDER BY t)` and pass "
+                "it as the first argument.\n\n"
                 "## Notes\n"
                 "The output length is `len(values) - window + 1`. Pair it with `argmax` "
                 "for the discord or `argmin` for the motif. NULL for an invalid/short "
@@ -216,12 +219,8 @@ class MatrixProfileFunction(ScalarFunction):
         )
         examples = [
             FunctionExample(
-                sql=(
-                    "SELECT len(anomaly.matrix_profile("
-                    "[1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,"
-                    "3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4))"
-                ),
-                description="Matrix profile length for a 25-point series, window 4 (= 22).",
+                sql=("SELECT anomaly.main.matrix_profile([1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0]::DOUBLE[], 4)"),
+                description="Matrix profile of a 10-point series with window 4 (7 distances).",
             ),
         ]
 
@@ -229,7 +228,7 @@ class MatrixProfileFunction(ScalarFunction):
     def compute(
         cls,
         values: Annotated[pa.ListArray, Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
-        window: Annotated[int, ConstParam(_WINDOW_DOC)],
+        window: Annotated[int, ConstParam(_WINDOW_DOC, ge=3)],
     ) -> Annotated[pa.ListArray, Returns(arrow_type=_LIST_DOUBLE)]:
         """Map the matrix-profile detector over each series row."""
         return _map_series(values, lambda v: detectors.matrix_profile(v, window), _LIST_DOUBLE)
@@ -277,7 +276,7 @@ class DiscordIndexFunction(ScalarFunction):
                 "matrix-profile value).\n\n"
                 "## Usage\n"
                 "```sql\n"
-                "SELECT anomaly.discord_index(\n"
+                "SELECT anomaly.main.discord_index(\n"
                 "  [1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,\n"
                 "   3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4);  -- 16\n"
                 "```\n\n"
@@ -299,7 +298,7 @@ class DiscordIndexFunction(ScalarFunction):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT anomaly.discord_index("
+                    "SELECT anomaly.main.discord_index("
                     "[1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,"
                     "3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4)"
                 ),
@@ -311,7 +310,7 @@ class DiscordIndexFunction(ScalarFunction):
     def compute(
         cls,
         values: Annotated[pa.ListArray, Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
-        window: Annotated[int, ConstParam(_WINDOW_DOC)],
+        window: Annotated[int, ConstParam(_WINDOW_DOC, ge=3)],
     ) -> Annotated[pa.Int64Array, Returns()]:
         """Map the discord-index detector over each series row."""
         return _map_series(values, lambda v: detectors.discord_index(v, window), pa.int64())
@@ -360,7 +359,7 @@ class MotifIndexFunction(ScalarFunction):
                 "matrix-profile value).\n\n"
                 "## Usage\n"
                 "```sql\n"
-                "SELECT anomaly.motif_index(\n"
+                "SELECT anomaly.main.motif_index(\n"
                 "  [0.0,2.0,4.0,2.0,0.0,0.1,0.116,0.133,0.15,0.166,0.183,0.2,\n"
                 "   0.0,2.0,4.0,2.0,0.0,0.3,0.4,0.5]::DOUBLE[], 5);  -- 0\n"
                 "```\n\n"
@@ -382,7 +381,7 @@ class MotifIndexFunction(ScalarFunction):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT anomaly.motif_index("
+                    "SELECT anomaly.main.motif_index("
                     "[0.0,2.0,4.0,2.0,0.0,0.1,0.116,0.133,0.15,0.166,0.183,0.2,"
                     "0.0,2.0,4.0,2.0,0.0,0.3,0.4,0.5]::DOUBLE[], 5)"
                 ),
@@ -394,7 +393,7 @@ class MotifIndexFunction(ScalarFunction):
     def compute(
         cls,
         values: Annotated[pa.ListArray, Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
-        window: Annotated[int, ConstParam(_WINDOW_DOC)],
+        window: Annotated[int, ConstParam(_WINDOW_DOC, ge=3)],
     ) -> Annotated[pa.Int64Array, Returns()]:
         """Map the motif-index detector over each series row."""
         return _map_series(values, lambda v: detectors.motif_index(v, window), pa.int64())
@@ -449,7 +448,7 @@ class ChangePointsFunction(ScalarFunction):
                 "automatically (ruptures PELT, `model='rbf'`).\n\n"
                 "## Usage\n"
                 "```sql\n"
-                "SELECT anomaly.change_points(\n"
+                "SELECT anomaly.main.change_points(\n"
                 "  [1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]::DOUBLE[]);\n"
                 "  -- [8]\n"
                 "```\n\n"
@@ -474,7 +473,7 @@ class ChangePointsFunction(ScalarFunction):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT anomaly.change_points("
+                    "SELECT anomaly.main.change_points("
                     "[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]"
                     "::DOUBLE[])"
                 ),
@@ -535,7 +534,7 @@ class ChangePointsNFunction(ScalarFunction):
                 "`Dynp`, `model='rbf'`).\n\n"
                 "## Usage\n"
                 "```sql\n"
-                "SELECT anomaly.change_points(\n"
+                "SELECT anomaly.main.change_points(\n"
                 "  [1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]::DOUBLE[], 1);\n"
                 "  -- [8]\n"
                 "```\n\n"
@@ -559,7 +558,7 @@ class ChangePointsNFunction(ScalarFunction):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT anomaly.change_points("
+                    "SELECT anomaly.main.change_points("
                     "[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]"
                     "::DOUBLE[], 1)"
                 ),
@@ -627,7 +626,7 @@ class ZscoreAnomaliesFunction(ScalarFunction):
                     "deviations from the series mean.\n\n"
                     "## Usage\n"
                     "```sql\n"
-                    "SELECT anomaly.zscore_anomalies(\n"
+                    "SELECT anomaly.main.zscore_anomalies(\n"
                     "  [10.0,10.0,11.0,9.0,10.0,40.0,10.0,9.0,11.0]::DOUBLE[], 2.0);  -- [5]\n"
                     "```\n\n"
                     "## Notes\n"
@@ -651,7 +650,9 @@ class ZscoreAnomaliesFunction(ScalarFunction):
         }
         examples = [
             FunctionExample(
-                sql=("SELECT anomaly.zscore_anomalies([10.0,10.0,11.0,9.0,10.0,40.0,10.0,9.0,11.0]::DOUBLE[], 2.0)"),
+                sql=(
+                    "SELECT anomaly.main.zscore_anomalies([10.0,10.0,11.0,9.0,10.0,40.0,10.0,9.0,11.0]::DOUBLE[], 2.0)"
+                ),
                 description="Flag samples beyond 2 sigma (an outlier at index 5).",
             ),
         ]

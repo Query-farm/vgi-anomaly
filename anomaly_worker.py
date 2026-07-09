@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.13"
 # dependencies = [
-#     "vgi-python[http]>=0.9.0",
+#     "vgi-python[http]>=0.14.0",
 #     "stumpy>=1.12",
 #     "ruptures>=1.1.9",
 #     "numpy",
@@ -181,6 +181,36 @@ _AGENT_TEST_TASKS = json.dumps(
                 "SELECT anomaly.main.discord_index("
                 "[1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,"
                 "3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4) AS discord_start"
+            ),
+            "ignore_column_names": True,
+        },
+        {
+            "name": "top_motif_start",
+            "prompt": (
+                "The 20-point series "
+                "[0,2,4,2,0,0.1,0.116,0.133,0.15,0.166,0.183,0.2,0,2,4,2,0,0.3,0.4,0.5] "
+                "contains a repeated triangle shape. Using a subsequence window of 5, "
+                "return the zero-based start index of the single most repeated pattern (the "
+                "top motif)."
+            ),
+            "reference_sql": (
+                "SELECT anomaly.main.motif_index("
+                "[0.0,2.0,4.0,2.0,0.0,0.1,0.116,0.133,0.15,0.166,0.183,0.2,"
+                "0.0,2.0,4.0,2.0,0.0,0.3,0.4,0.5]::DOUBLE[], 5) AS motif_start"
+            ),
+            "ignore_column_names": True,
+        },
+        {
+            "name": "matrix_profile_length",
+            "prompt": (
+                "For the numeric series [1, 2, 3, 4, 3, 2, 1, 2, 3, 4] (already in time "
+                "order) and a subsequence window of 4, compute the full matrix profile (the "
+                "z-normalized distance from every length-4 subsequence to its nearest "
+                "neighbour) and return how many values it contains, as a single number."
+            ),
+            "reference_sql": (
+                "SELECT len(anomaly.main.matrix_profile("
+                "[1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0]::DOUBLE[], 4)) AS profile_length"
             ),
             "ignore_column_names": True,
         },
