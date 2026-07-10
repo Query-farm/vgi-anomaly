@@ -58,6 +58,22 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["vgi_anomaly"]
 
+[tool.vgi-lint-check.execution]
+# The matrix-profile detectors (matrix_profile / discord_index / motif_index)
+# call `stumpy.stump`, a numba-JIT kernel that pays a one-time ~15-30 s compile
+# the first time it runs in a fresh worker process (stumpy ships no on-disk numba
+# cache, so every spawn recompiles). `AnomalyWorker.__init__` warms it in a
+# background thread, but under `--execute` the linter fires the example queries
+# concurrently the moment it attaches, so the first stumpy example serializes
+# behind that cold compile and blows the 30 s default per-query cap on a small CI
+# runner. The examples are correct and DO run — they just need a wider cap while
+# the JIT warms. This only widens the execution window; it hides no finding and
+# changes no severity, fail-on, or baseline.
+timeout = 120
+# Run examples one at a time so the cold numba compile is paid once (by the first
+# stumpy example) instead of racing across cursors.
+concurrency = 1
+
 [tool.ruff]
 line-length = 120
 target-version = "py313"
