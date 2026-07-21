@@ -29,6 +29,7 @@ SELECT anomaly.matrix_profile(array_agg(v ORDER BY t), 50) FROM series;  -- DOUB
 SELECT anomaly.change_points(array_agg(v ORDER BY t))      FROM series;  -- BIGINT[] (auto count)
 SELECT anomaly.change_points(array_agg(v ORDER BY t), 2)   FROM series;  -- exactly 2 change points
 SELECT UNNEST(anomaly.zscore_anomalies(array_agg(v ORDER BY t), 3.0)) FROM series;  -- beyond 3 sigma
+SELECT UNNEST(anomaly.zscore_anomalies(array_agg(v ORDER BY t)))      FROM series;  -- default 3 sigma
 
 -- Literal series work too:
 SELECT anomaly.discord_index([1.0,2.0,3.0,100.0,2.0,3.0,1.0]::DOUBLE[], 3);
@@ -77,6 +78,7 @@ SELECT change_points(series, 3);    -- exactly 3 change points (dynamic programm
 | `change_points` | `(values DOUBLE[])` | `BIGINT[]` | Change-point indices via ruptures **PELT** (`model="rbf"`, automatic penalty); count chosen automatically. |
 | `change_points` | `(values DOUBLE[], n_bkps INT)` | `BIGINT[]` | Change-point indices via ruptures **Dynp** (`model="rbf"`) for **exactly** `n_bkps` breakpoints. |
 | `zscore_anomalies` | `(values DOUBLE[], threshold DOUBLE)` | `BIGINT[]` | Indices whose value is more than `threshold` population std devs from the mean (light, dependency-free). |
+| `zscore_anomalies` | `(values DOUBLE[])` | `BIGINT[]` | Same, at the default **3-sigma** cutoff (equivalent to `zscore_anomalies(values, 3.0)`). |
 
 ### Matrix profile (`stumpy`)
 
@@ -93,8 +95,9 @@ a clear SQL error (e.g. window ≥ length).
 
 `change_points(values)` runs **PELT** with `model="rbf"` (kernel change detection,
 sensitive to shifts in mean *and* distribution) and an automatic penalty of
-`log(n) * max(var, 1)` — a BIC-style complexity term scaled by the series
-variance — letting the algorithm choose how many change points there are.
+`log(n)` — a plain BIC-style complexity term (the `rbf` cost is amplitude-invariant,
+so scaling the penalty by variance would over-penalize large steps and miss them) —
+letting the algorithm choose how many change points there are.
 `change_points(values, n_bkps)` instead runs exact dynamic programming (`Dynp`,
 same model) for precisely `n_bkps` breakpoints; `n_bkps` must satisfy
 `1 <= n_bkps < len(values)`. Returned indices are *interior* breakpoints (the
@@ -106,7 +109,8 @@ of the first sample of a new segment.
 `zscore_anomalies(values, threshold)` is the light, dependency-free complement to
 the heavy methods: it returns the indices whose value lies more than `threshold`
 population standard deviations from the series mean. A constant series flags
-nothing; `threshold` must be positive.
+nothing; `threshold` must be positive. Omit `threshold`
+(`zscore_anomalies(values)`) to use the textbook **3-sigma** default.
 
 ## NULL and robustness semantics
 

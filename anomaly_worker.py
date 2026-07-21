@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.13"
 # dependencies = [
-#     "vgi-python[http]>=0.14.0",
+#     "vgi-python[http]>=0.16.0",
 #     "stumpy>=1.12",
 #     "ruptures>=1.1.9",
 #     "numpy",
@@ -33,8 +33,9 @@ Usage:
     -- change points (auto count, or a fixed number):
     SELECT anomaly.change_points(array_agg(v ORDER BY t))     FROM series;
     SELECT anomaly.change_points(array_agg(v ORDER BY t), 2)  FROM series;
-    -- light z-score outliers beyond 3 sigma:
+    -- light z-score outliers beyond a threshold (or the default 3 sigma):
     SELECT UNNEST(anomaly.zscore_anomalies(array_agg(v ORDER BY t), 3.0)) FROM series;
+    SELECT UNNEST(anomaly.zscore_anomalies(array_agg(v ORDER BY t)))      FROM series;
 
     -- literal series also work:
     SELECT anomaly.discord_index([1.0, 2.0, 3.0, 100.0, 2.0, 3.0]::DOUBLE[], 3);
@@ -53,7 +54,7 @@ from vgi_anomaly import detectors
 from vgi_anomaly.scalars import SCALAR_FUNCTIONS
 
 _CATALOG_DESCRIPTION_LLM = (
-    "Time-series anomaly detection over a numeric series passed as a single DOUBLE[] argument "
+    "Time-series anomaly detection over a numeric series passed as a single `DOUBLE[]` argument "
     "(build it in SQL with array_agg(value ORDER BY t)). Find the most anomalous subsequence "
     "(discord) and the most repeated pattern (motif) with the matrix profile, compute the full "
     "matrix profile, detect change points (regime shifts) with ruptures PELT/Dynp, and flag "
@@ -101,12 +102,11 @@ _CATALOG_DESCRIPTION_MD = (
     "([documentation](https://centre-borelli.github.io/ruptures-docs/)) with its PELT and "
     "dynamic-programming search algorithms, and the lightweight point-outlier check is "
     "plain [NumPy](https://numpy.org/) ([documentation](https://numpy.org/doc/stable/)) "
-    "z-scoring. List the schema to discover the individual detector functions and their "
-    "signatures."
+    "z-scoring."
 )
 
 _SCHEMA_DESCRIPTION_LLM = (
-    "Anomaly-detection scalar functions operating on a whole numeric series (DOUBLE[]): "
+    "Anomaly-detection scalar functions operating on a whole numeric series (`DOUBLE[]`): "
     "matrix profile, top discord (anomaly) index, top motif index, change-point detection, "
     "and z-score outlier indices."
 )
@@ -128,8 +128,7 @@ _SCHEMA_DESCRIPTION_MD = (
     "Build the input with `array_agg(value ORDER BY t)` (or a bracketed array literal) "
     "so the whole series is passed in time order, then apply the detector that matches "
     "the question — one anomalous window, one recurring pattern, the regime boundaries, "
-    "or the individual outlier positions. List this schema to see each function's exact "
-    "signature and per-argument documentation."
+    "or the individual outlier positions."
 )
 
 # VGI152/VGI920: an analyst task suite so `vgi-lint simulate` can measure how
@@ -309,21 +308,65 @@ _ANOMALY_CATALOG = Catalog(
                 "domain": "time-series",
                 "category": "anomaly-detection",
                 "topic": "matrix-profile-and-change-points",
-                # VGI506 representative example queries (catalog-qualified, runnable).
-                "vgi.example_queries": (
-                    "SELECT anomaly.main.matrix_profile("
-                    "[1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0]::DOUBLE[], 4);\n"
-                    "SELECT anomaly.main.discord_index("
-                    "[1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,"
-                    "3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4);\n"
-                    "SELECT anomaly.main.motif_index("
-                    "[0.0,2.0,4.0,2.0,0.0,0.1,0.116,0.133,0.15,0.166,0.183,0.2,"
-                    "0.0,2.0,4.0,2.0,0.0,0.3,0.4,0.5]::DOUBLE[], 5);\n"
-                    "SELECT anomaly.main.change_points("
-                    "[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]"
-                    "::DOUBLE[]);\n"
-                    "SELECT anomaly.main.zscore_anomalies("
-                    "[10.0,10.0,11.0,9.0,10.0,40.0,10.0,9.0,11.0]::DOUBLE[], 2.0);"
+                # VGI506/VGI515 representative example queries: a JSON list of
+                # {"description","sql"} objects (catalog-qualified, runnable) so
+                # every example carries a human-readable description.
+                "vgi.example_queries": json.dumps(
+                    [
+                        {
+                            "description": (
+                                "Full matrix profile of a 10-point series with window 4 "
+                                "(7 nearest-neighbour distances)."
+                            ),
+                            "sql": (
+                                "SELECT anomaly.main.matrix_profile("
+                                "[1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0]::DOUBLE[], 4)"
+                            ),
+                        },
+                        {
+                            "description": (
+                                "Start index of the top discord (the most anomalous "
+                                "window-4 subsequence) — the spike at 18 gives 16."
+                            ),
+                            "sql": (
+                                "SELECT anomaly.main.discord_index("
+                                "[1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,"
+                                "3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4)"
+                            ),
+                        },
+                        {
+                            "description": (
+                                "Start index of the top motif (the most repeated window-5 "
+                                "subsequence) — the two triangles give 0."
+                            ),
+                            "sql": (
+                                "SELECT anomaly.main.motif_index("
+                                "[0.0,2.0,4.0,2.0,0.0,0.1,0.116,0.133,0.15,0.166,0.183,0.2,"
+                                "0.0,2.0,4.0,2.0,0.0,0.3,0.4,0.5]::DOUBLE[], 5)"
+                            ),
+                        },
+                        {
+                            "description": (
+                                "Automatically detect regime changes on a single step — the "
+                                "level shift at index 8 gives [8]."
+                            ),
+                            "sql": (
+                                "SELECT anomaly.main.change_points("
+                                "[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]"
+                                "::DOUBLE[])"
+                            ),
+                        },
+                        {
+                            "description": (
+                                "Flag z-score point outliers beyond 2 sigma — the 40.0 spike "
+                                "is index 5, so the result is [5]."
+                            ),
+                            "sql": (
+                                "SELECT anomaly.main.zscore_anomalies("
+                                "[10.0,10.0,11.0,9.0,10.0,40.0,10.0,9.0,11.0]::DOUBLE[], 2.0)"
+                            ),
+                        },
+                    ]
                 ),
             },
             functions=list(SCALAR_FUNCTIONS),

@@ -116,3 +116,15 @@ class TestZscore:
     def test_empty_row(self, client: Client) -> None:
         out = _scalar(client, "zscore_anomalies", [[]], positional=[pa.scalar(3.0, type=pa.float64())])
         assert out[0] is None
+
+    def test_default_threshold_overload(self, client: Client) -> None:
+        # One-argument form: default 3-sigma cutoff. 19 zeros + one 100 (z ~ 4.4).
+        series = [0.0] * 19 + [100.0]
+        out = _scalar(client, "zscore_anomalies", [series])
+        assert out[0] == [19]
+
+    def test_default_matches_explicit_three(self, client: Client) -> None:
+        series = [0.0] * 19 + [100.0]
+        default = _scalar(client, "zscore_anomalies", [series])
+        explicit = _scalar(client, "zscore_anomalies", [series], positional=[pa.scalar(3.0, type=pa.float64())])
+        assert default == explicit

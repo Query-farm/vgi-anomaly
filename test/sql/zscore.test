@@ -30,6 +30,27 @@ SELECT len(anomaly.zscore_anomalies([5.0,5.0,5.0,5.0,5.0]::DOUBLE[], 3.0));
 ----
 0
 
+# One-argument overload: default 3-sigma cutoff. The lone 100.0 among 19 zeros
+# has z ~ 4.4 (> 3), so it is flagged at index 19.
+query I
+SELECT anomaly.zscore_anomalies(
+  [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100.0]::DOUBLE[]);
+----
+[19]
+
+# The default form equals passing threshold 3.0 explicitly.
+query I
+SELECT anomaly.zscore_anomalies([0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100.0]::DOUBLE[])
+     = anomaly.zscore_anomalies([0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100.0]::DOUBLE[], 3.0);
+----
+true
+
+# Default-form NULL series -> NULL.
+query I
+SELECT anomaly.zscore_anomalies(NULL::DOUBLE[]) IS NULL;
+----
+true
+
 # NULL series -> NULL.
 query I
 SELECT anomaly.zscore_anomalies(NULL::DOUBLE[], 3.0) IS NULL;

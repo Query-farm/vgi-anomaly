@@ -94,6 +94,7 @@ def _meta_tags(
     description_llm: str,
     description_md: str,
     keywords: list[str],
+    example_queries: list[dict[str, str]],
 ) -> dict[str, str]:
     """Build the strict-profile per-object tag set shared by every scalar.
 
@@ -101,10 +102,14 @@ def _meta_tags(
     intentionally *not* the machine name, to satisfy VGI125), VGI112
     ``vgi.doc_llm`` and VGI113 ``vgi.doc_md`` (Markdown
     narratives for agents and humans respectively), VGI126 ``vgi.keywords``
-    (a JSON array of synonym strings, per VGI138), and VGI413 ``vgi.category``
-    naming one of the schema's ``vgi.categories``. Per-object ``vgi.source_url``
-    is intentionally omitted (VGI139): the canonical ``source_url`` lives only on
-    the catalog object.
+    (a JSON array of synonym strings, per VGI138), VGI413 ``vgi.category``
+    naming one of the schema's ``vgi.categories``, and VGI515
+    ``vgi.example_queries`` (a JSON list of ``{description, sql}`` objects whose
+    SQL is byte-identical to ``Meta.examples`` so every surfaced example carries a
+    human-readable description — the native ``duckdb_functions().examples``
+    carrier drops descriptions). Per-object ``vgi.source_url`` is intentionally
+    omitted (VGI139): the canonical ``source_url`` lives only on the catalog
+    object.
 
     Args:
         title: Human display name (not the machine function name).
@@ -112,6 +117,9 @@ def _meta_tags(
         description_llm: Markdown narrative for agents (``vgi.doc_llm``).
         description_md: Markdown narrative for humans (``vgi.doc_md``).
         keywords: Synonym strings serialized into ``vgi.keywords``.
+        example_queries: ``{description, sql}`` examples serialized into
+            ``vgi.example_queries``; for an arity-overloaded name pass every
+            overload's example (aggregated by function name).
 
     Returns:
         The per-object tag dictionary.
@@ -122,7 +130,92 @@ def _meta_tags(
         "vgi.doc_llm": description_llm,
         "vgi.doc_md": description_md,
         "vgi.keywords": json.dumps(keywords),
+        "vgi.example_queries": json.dumps(example_queries),
     }
+
+
+def _examples(specs: list[dict[str, str]]) -> list[FunctionExample]:
+    """Turn ``{description, sql}`` specs into native ``Meta.examples`` entries.
+
+    The same specs feed the ``vgi.example_queries`` tag, so the tag-carried and
+    native carriers stay byte-identical (and the linter's SQL-keyed merge dedups
+    them to a single, described example).
+    """
+    return [FunctionExample(sql=s["sql"], description=s["description"]) for s in specs]
+
+
+# Per-function example specs, reused for both the native ``Meta.examples`` and
+# the ``vgi.example_queries`` tag. The two ``change_points`` arity overloads share
+# one aggregated spec list (VGI515: examples aggregate by function name).
+_MATRIX_PROFILE_EXAMPLES = [
+    {
+        "description": "Matrix profile of a 10-point series with window 4 (7 distances).",
+        "sql": "SELECT anomaly.main.matrix_profile([1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0]::DOUBLE[], 4)",
+    },
+]
+_DISCORD_INDEX_EXAMPLES = [
+    {
+        "description": "Index of the most anomalous window (a spike at 18 -> 16).",
+        "sql": (
+            "SELECT anomaly.main.discord_index("
+            "[1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,"
+            "3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4)"
+        ),
+    },
+]
+_MOTIF_INDEX_EXAMPLES = [
+    {
+        "description": "Index of the most repeated window (two triangles -> 0).",
+        "sql": (
+            "SELECT anomaly.main.motif_index("
+            "[0.0,2.0,4.0,2.0,0.0,0.1,0.116,0.133,0.15,0.166,0.183,0.2,"
+            "0.0,2.0,4.0,2.0,0.0,0.3,0.4,0.5]::DOUBLE[], 5)"
+        ),
+    },
+]
+_CHANGE_POINTS_AUTO_EXAMPLES = [
+    {
+        "description": "Auto-detect change points on a single step at index 8 -> [8].",
+        "sql": (
+            "SELECT anomaly.main.change_points("
+            "[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]"
+            "::DOUBLE[])"
+        ),
+    },
+]
+_CHANGE_POINTS_FIXED_EXAMPLES = [
+    {
+        "description": "Detect exactly one change point on a single step -> [8].",
+        "sql": (
+            "SELECT anomaly.main.change_points("
+            "[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]"
+            "::DOUBLE[], 1)"
+        ),
+    },
+]
+# Aggregated by function name for the shared vgi.example_queries tag.
+_CHANGE_POINTS_EXAMPLES = _CHANGE_POINTS_AUTO_EXAMPLES + _CHANGE_POINTS_FIXED_EXAMPLES
+_ZSCORE_DEFAULT_EXAMPLES = [
+    {
+        "description": "Flag point outliers at the default 3-sigma cutoff — the lone 100.0 among zeros is index 19.",
+        "sql": (
+            "SELECT anomaly.main.zscore_anomalies("
+            "[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100.0]::DOUBLE[])"
+        ),
+    },
+]
+_ZSCORE_THRESHOLD_EXAMPLES = [
+    {
+        "description": "Flag samples beyond 2 sigma (an outlier at index 5).",
+        "sql": "SELECT anomaly.main.zscore_anomalies([10.0,10.0,11.0,9.0,10.0,40.0,10.0,9.0,11.0]::DOUBLE[], 2.0)",
+    },
+]
+# Aggregated by function name for the shared vgi.example_queries tag.
+_ZSCORE_EXAMPLES = _ZSCORE_DEFAULT_EXAMPLES + _ZSCORE_THRESHOLD_EXAMPLES
+
+# The default z-score cutoff for the one-argument zscore_anomalies overload:
+# 3 population standard deviations is the textbook "3-sigma" outlier rule.
+_DEFAULT_ZSCORE_THRESHOLD = 3.0
 
 
 # ---------------------------------------------------------------------------
@@ -216,13 +309,9 @@ class MatrixProfileFunction(ScalarFunction):
                 "time series",
                 "similarity",
             ],
+            example_queries=_MATRIX_PROFILE_EXAMPLES,
         )
-        examples = [
-            FunctionExample(
-                sql=("SELECT anomaly.main.matrix_profile([1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0]::DOUBLE[], 4)"),
-                description="Matrix profile of a 10-point series with window 4 (7 distances).",
-            ),
-        ]
+        examples = _examples(_MATRIX_PROFILE_EXAMPLES)
 
     @classmethod
     def compute(
@@ -294,17 +383,9 @@ class DiscordIndexFunction(ScalarFunction):
                 "time series",
                 "novelty detection",
             ],
+            example_queries=_DISCORD_INDEX_EXAMPLES,
         )
-        examples = [
-            FunctionExample(
-                sql=(
-                    "SELECT anomaly.main.discord_index("
-                    "[1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,"
-                    "3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4)"
-                ),
-                description="Index of the most anomalous window (a spike at 18 -> 16).",
-            ),
-        ]
+        examples = _examples(_DISCORD_INDEX_EXAMPLES)
 
     @classmethod
     def compute(
@@ -377,17 +458,9 @@ class MotifIndexFunction(ScalarFunction):
                 "time series",
                 "pattern discovery",
             ],
+            example_queries=_MOTIF_INDEX_EXAMPLES,
         )
-        examples = [
-            FunctionExample(
-                sql=(
-                    "SELECT anomaly.main.motif_index("
-                    "[0.0,2.0,4.0,2.0,0.0,0.1,0.116,0.133,0.15,0.166,0.183,0.2,"
-                    "0.0,2.0,4.0,2.0,0.0,0.3,0.4,0.5]::DOUBLE[], 5)"
-                ),
-                description="Index of the most repeated window (two triangles -> 0).",
-            ),
-        ]
+        examples = _examples(_MOTIF_INDEX_EXAMPLES)
 
     @classmethod
     def compute(
@@ -412,7 +485,7 @@ class ChangePointsFunction(ScalarFunction):
 
         name = "change_points"
         description = (
-            "Change-point indices via ruptures PELT (model='rbf', automatic log(n)*variance "
+            "Change-point indices via ruptures PELT (model='rbf', automatic log(n) "
             "penalty); count chosen automatically. NULL for an invalid series."
         )
         categories = ["anomaly", "change_point"]
@@ -469,17 +542,9 @@ class ChangePointsFunction(ScalarFunction):
                 "structural break",
                 "time series",
             ],
+            example_queries=_CHANGE_POINTS_EXAMPLES,
         )
-        examples = [
-            FunctionExample(
-                sql=(
-                    "SELECT anomaly.main.change_points("
-                    "[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]"
-                    "::DOUBLE[])"
-                ),
-                description="Auto-detect change points on a single step at index 8 -> [8].",
-            ),
-        ]
+        examples = _examples(_CHANGE_POINTS_AUTO_EXAMPLES)
 
     @classmethod
     def compute(
@@ -554,17 +619,9 @@ class ChangePointsNFunction(ScalarFunction):
                 "regime change",
                 "time series",
             ],
+            example_queries=_CHANGE_POINTS_EXAMPLES,
         )
-        examples = [
-            FunctionExample(
-                sql=(
-                    "SELECT anomaly.main.change_points("
-                    "[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]"
-                    "::DOUBLE[], 1)"
-                ),
-                description="Detect exactly one change point on a single step -> [8].",
-            ),
-        ]
+        examples = _examples(_CHANGE_POINTS_FIXED_EXAMPLES)
 
     @classmethod
     def compute(
@@ -607,12 +664,13 @@ class ZscoreAnomaliesFunction(ScalarFunction):
                     "Use it as a light, dependency-free first pass for individual outliers "
                     "(spikes, dropouts) when you do not need subsequence/shape analysis. "
                     "For anomalous *patterns* use `discord_index`/`matrix_profile`; for "
-                    "*regime shifts* use `change_points`.\n\n"
+                    "*regime shifts* use `change_points`. Omit `threshold` "
+                    "(`zscore_anomalies(values)`) to use the textbook 3-sigma cutoff.\n\n"
                     "## Inputs / outputs\n"
                     "- **values** — the series as a `DOUBLE[]`, assembled with "
                     "`array_agg(value ORDER BY t)`.\n"
                     "- `threshold DOUBLE` — z-score magnitude cutoff, e.g. `3.0`; must be "
-                    "positive and finite.\n"
+                    "positive and finite. Omit it to default to `3.0`.\n"
                     "- Returns `BIGINT[]` of flagged indices (empty when nothing exceeds "
                     "the cutoff); `NULL` for an invalid series.\n\n"
                     "## Edge cases\n"
@@ -644,18 +702,12 @@ class ZscoreAnomaliesFunction(ScalarFunction):
                     "point anomaly",
                     "time series",
                 ],
+                example_queries=_ZSCORE_EXAMPLES,
             ),
             # VGI509: a guaranteed-runnable, self-contained executable example.
             "vgi.executable_examples": _EXECUTABLE_EXAMPLES,
         }
-        examples = [
-            FunctionExample(
-                sql=(
-                    "SELECT anomaly.main.zscore_anomalies([10.0,10.0,11.0,9.0,10.0,40.0,10.0,9.0,11.0]::DOUBLE[], 2.0)"
-                ),
-                description="Flag samples beyond 2 sigma (an outlier at index 5).",
-            ),
-        ]
+        examples = _examples(_ZSCORE_THRESHOLD_EXAMPLES)
 
     @classmethod
     def compute(
@@ -667,6 +719,89 @@ class ZscoreAnomaliesFunction(ScalarFunction):
         return _map_series(values, lambda v: detectors.zscore_anomalies(v, threshold), _LIST_BIGINT)
 
 
+class ZscoreAnomaliesDefaultFunction(ScalarFunction):
+    """``zscore_anomalies(values)`` -- z-score outliers at the default 3-sigma cutoff."""
+
+    class Meta:
+        """VGI registration metadata for ``zscore_anomalies`` (default threshold)."""
+
+        name = "zscore_anomalies"
+        description = (
+            "Indices more than 3 population std devs from the mean (the default 3-sigma "
+            "cutoff of the light, dependency-free z-score check). NULL for an invalid series."
+        )
+        categories = ["anomaly", "zscore"]
+        tags = {
+            **_meta_tags(
+                title="Z-Score Outlier Indices (Default 3 Sigma)",
+                category="Outliers",
+                description_llm=(
+                    "# zscore_anomalies (default threshold)\n\n"
+                    "Flag **point outliers** in a numeric series at the textbook **3-sigma** "
+                    "cutoff and return their indices as a `BIGINT[]`. This overload "
+                    "(`zscore_anomalies(values)`) is exactly "
+                    "`zscore_anomalies(values, 3.0)` — a sample is flagged when its absolute "
+                    "z-score (distance from the series mean in population standard "
+                    "deviations) exceeds `3.0`.\n\n"
+                    "## When to use\n"
+                    "Reach for it as the zero-configuration first pass for individual "
+                    "outliers (spikes, dropouts). When you need a different sensitivity, use "
+                    "the two-argument overload `zscore_anomalies(values, threshold)`.\n\n"
+                    "## Inputs / outputs\n"
+                    "- **values** — the series as a `DOUBLE[]`, assembled with "
+                    "`array_agg(value ORDER BY t)`.\n"
+                    "- Returns `BIGINT[]` of flagged indices (empty when nothing exceeds "
+                    "`3.0`); `NULL` for an invalid series.\n\n"
+                    "## Edge cases\n"
+                    "NULL / empty / non-finite series returns `NULL`. A constant series "
+                    "(zero std dev) flags nothing (empty list, not NULL)."
+                ),
+                description_md=(
+                    "# Z-Score Anomalies (Default 3 Sigma)\n\n"
+                    "Indices whose value is more than 3 population standard deviations from "
+                    "the series mean — the zero-argument-threshold form of "
+                    "`zscore_anomalies`.\n\n"
+                    "## Usage\n"
+                    "```sql\n"
+                    "SELECT anomaly.main.zscore_anomalies(\n"
+                    "  [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,\n"
+                    "   0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100.0]::DOUBLE[]);  -- [19]\n"
+                    "```\n\n"
+                    "## Notes\n"
+                    "Equivalent to `zscore_anomalies(values, 3.0)`; pass an explicit "
+                    "`threshold` for a different cutoff. A constant series flags nothing; "
+                    "NULL for an invalid series."
+                ),
+                keywords=[
+                    "z-score",
+                    "zscore",
+                    "outlier",
+                    "sigma",
+                    "3-sigma",
+                    "standard deviation",
+                    "default threshold",
+                    "spike detection",
+                    "point anomaly",
+                    "time series",
+                ],
+                example_queries=_ZSCORE_EXAMPLES,
+            ),
+        }
+        examples = _examples(_ZSCORE_DEFAULT_EXAMPLES)
+
+    @classmethod
+    def compute(
+        cls,
+        values: Annotated[pa.ListArray, Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
+    ) -> Annotated[pa.ListArray, Returns(arrow_type=_LIST_BIGINT)]:
+        """Map the z-score detector (default 3-sigma cutoff) over each series row."""
+        return _map_series(
+            values,
+            lambda v: detectors.zscore_anomalies(v, _DEFAULT_ZSCORE_THRESHOLD),
+            _LIST_BIGINT,
+        )
+
+
 SCALAR_FUNCTIONS: list[type] = [
     MatrixProfileFunction,
     DiscordIndexFunction,
@@ -674,4 +809,5 @@ SCALAR_FUNCTIONS: list[type] = [
     ChangePointsFunction,
     ChangePointsNFunction,
     ZscoreAnomaliesFunction,
+    ZscoreAnomaliesDefaultFunction,
 ]
