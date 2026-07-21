@@ -44,12 +44,28 @@ dependencies = [
 http = [
     "vgi-python[http]>=0.16.0",
 ]
+# HTTP-serving extra — installed by the published Docker image (`.[serve]`) so
+# the container can serve the worker over HTTP (/health + VGI RPC) via
+# `vgi-serve --http`. Same content as `http`; a distinct name matches the
+# fleet's Docker template (vgi-llm / vgi-etf-schwab).
+serve = [
+    "vgi-python[http]>=0.16.0",
+]
 dev = [
     "pytest>=8",
     "ruff",
     "mypy",
     "pydoclint",
 ]
+
+# Console script DuckDB's vgi extension (and the Docker stdio transport) can
+# spawn as a plain LOCATION. Points at the wheel-importable worker module.
+[project.scripts]
+vgi-anomaly-worker = "vgi_anomaly.worker:main"
+
+[project.urls]
+Repository = "https://github.com/Query-farm/vgi-anomaly"
+Issues = "https://github.com/Query-farm/vgi-anomaly/issues"
 
 [build-system]
 requires = ["hatchling"]
