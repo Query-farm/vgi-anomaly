@@ -43,6 +43,7 @@ def _scalar(
     results = list(
         client.scalar_function(
             function_name=name,
+            schema_path=["main"],
             input=iter([batch]),
             arguments=Arguments(positional=positional or []),
         )

@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any, cast
 
 import pyarrow as pa
 from vgi.arguments import ConstParam, Param, Returns
@@ -229,10 +229,10 @@ _DEFAULT_ZSCORE_THRESHOLD = 3.0
 
 
 def _map_series[T](
-    arr: pa.ListArray,
+    arr: pa.Array[Any],
     fn: Callable[[list[float] | None], T],
     arrow_type: pa.DataType,
-) -> pa.Array:
+) -> pa.Array[Any]:
     out: list[T | None] = []
     for row in arr.to_pylist():
         out.append(fn(row))
@@ -316,9 +316,9 @@ class MatrixProfileFunction(ScalarFunction):
     @classmethod
     def compute(
         cls,
-        values: Annotated[pa.ListArray, Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
+        values: Annotated[pa.Array[Any], Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
         window: Annotated[int, ConstParam(_WINDOW_DOC, ge=3)],
-    ) -> Annotated[pa.ListArray, Returns(arrow_type=_LIST_DOUBLE)]:
+    ) -> Annotated[pa.Array[Any], Returns(arrow_type=_LIST_DOUBLE)]:
         """Map the matrix-profile detector over each series row."""
         return _map_series(values, lambda v: detectors.matrix_profile(v, window), _LIST_DOUBLE)
 
@@ -390,11 +390,11 @@ class DiscordIndexFunction(ScalarFunction):
     @classmethod
     def compute(
         cls,
-        values: Annotated[pa.ListArray, Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
+        values: Annotated[pa.Array[Any], Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
         window: Annotated[int, ConstParam(_WINDOW_DOC, ge=3)],
     ) -> Annotated[pa.Int64Array, Returns()]:
         """Map the discord-index detector over each series row."""
-        return _map_series(values, lambda v: detectors.discord_index(v, window), pa.int64())
+        return cast(pa.Int64Array, _map_series(values, lambda v: detectors.discord_index(v, window), pa.int64()))
 
 
 class MotifIndexFunction(ScalarFunction):
@@ -465,11 +465,11 @@ class MotifIndexFunction(ScalarFunction):
     @classmethod
     def compute(
         cls,
-        values: Annotated[pa.ListArray, Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
+        values: Annotated[pa.Array[Any], Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
         window: Annotated[int, ConstParam(_WINDOW_DOC, ge=3)],
     ) -> Annotated[pa.Int64Array, Returns()]:
         """Map the motif-index detector over each series row."""
-        return _map_series(values, lambda v: detectors.motif_index(v, window), pa.int64())
+        return cast(pa.Int64Array, _map_series(values, lambda v: detectors.motif_index(v, window), pa.int64()))
 
 
 # ===========================================================================
@@ -549,8 +549,8 @@ class ChangePointsFunction(ScalarFunction):
     @classmethod
     def compute(
         cls,
-        values: Annotated[pa.ListArray, Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
-    ) -> Annotated[pa.ListArray, Returns(arrow_type=_LIST_BIGINT)]:
+        values: Annotated[pa.Array[Any], Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
+    ) -> Annotated[pa.Array[Any], Returns(arrow_type=_LIST_BIGINT)]:
         """Map the auto-count change-point detector over each series row."""
         return _map_series(values, lambda v: detectors.change_points(v, None), _LIST_BIGINT)
 
@@ -626,9 +626,9 @@ class ChangePointsNFunction(ScalarFunction):
     @classmethod
     def compute(
         cls,
-        values: Annotated[pa.ListArray, Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
+        values: Annotated[pa.Array[Any], Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
         n_bkps: Annotated[int, ConstParam("Exact number of breakpoints to find (>= 1, < length).")],
-    ) -> Annotated[pa.ListArray, Returns(arrow_type=_LIST_BIGINT)]:
+    ) -> Annotated[pa.Array[Any], Returns(arrow_type=_LIST_BIGINT)]:
         """Map the fixed-count change-point detector over each series row."""
         return _map_series(values, lambda v: detectors.change_points(v, n_bkps), _LIST_BIGINT)
 
@@ -712,9 +712,9 @@ class ZscoreAnomaliesFunction(ScalarFunction):
     @classmethod
     def compute(
         cls,
-        values: Annotated[pa.ListArray, Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
+        values: Annotated[pa.Array[Any], Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
         threshold: Annotated[float, ConstParam("Z-score magnitude threshold (positive, e.g. 3.0).")],
-    ) -> Annotated[pa.ListArray, Returns(arrow_type=_LIST_BIGINT)]:
+    ) -> Annotated[pa.Array[Any], Returns(arrow_type=_LIST_BIGINT)]:
         """Map the z-score anomaly detector over each series row."""
         return _map_series(values, lambda v: detectors.zscore_anomalies(v, threshold), _LIST_BIGINT)
 
@@ -792,8 +792,8 @@ class ZscoreAnomaliesDefaultFunction(ScalarFunction):
     @classmethod
     def compute(
         cls,
-        values: Annotated[pa.ListArray, Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
-    ) -> Annotated[pa.ListArray, Returns(arrow_type=_LIST_BIGINT)]:
+        values: Annotated[pa.Array[Any], Param(arrow_type=_LIST_DOUBLE, doc=_VALUES_DOC)],
+    ) -> Annotated[pa.Array[Any], Returns(arrow_type=_LIST_BIGINT)]:
         """Map the z-score detector (default 3-sigma cutoff) over each series row."""
         return _map_series(
             values,

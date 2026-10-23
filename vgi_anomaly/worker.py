@@ -131,10 +131,11 @@ _SCHEMA_DESCRIPTION_MD = (
 
 # VGI152/VGI920: an analyst task suite so `vgi-lint simulate` can measure how
 # well an agent, seeing only the catalog overview, actually uses this worker.
-# Each prompt embeds the exact series and parameter, and every `reference_sql`
-# is catalog-qualified, self-contained, and deterministic (fixed integer index
-# outputs), so the reference is sound and re-runnable. `ignore_column_names`
-# grades on values only (the natural answer is a single array/scalar).
+# Each task is a public {name, prompt} object; every prompt embeds the exact
+# series and parameter. VGI416: the grader-only fields (`reference_sql`,
+# `ignore_column_names`) live in the private `vgi-agent-tests.yaml` sidecar at the
+# repo root; each reference is catalog-qualified, self-contained, and deterministic
+# (fixed integer index outputs), and grading compares values only.
 _AGENT_TEST_TASKS = json.dumps(
     [
         {
@@ -146,11 +147,6 @@ _AGENT_TEST_TASKS = json.dumps(
                 "Return the detector's result directly as a single array value in one row (the "
                 "list of zero-based outlier indices) — do not UNNEST it into one row per index."
             ),
-            "reference_sql": (
-                "SELECT anomaly.main.zscore_anomalies("
-                "[10.0,10.0,11.0,9.0,10.0,40.0,10.0,9.0,11.0]::DOUBLE[], 2.0) AS outlier_indices"
-            ),
-            "ignore_column_names": True,
         },
         {
             "name": "regime_change_index",
@@ -159,12 +155,6 @@ _AGENT_TEST_TASKS = json.dumps(
                 "Automatically detect its change point(s) and return the index/indices where a "
                 "new regime begins."
             ),
-            "reference_sql": (
-                "SELECT anomaly.main.change_points("
-                "[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0,9.0]::DOUBLE[]) "
-                "AS change_points"
-            ),
-            "ignore_column_names": True,
         },
         {
             "name": "top_discord_start",
@@ -174,12 +164,6 @@ _AGENT_TEST_TASKS = json.dumps(
                 "window of 4, return the zero-based start index of the single most anomalous "
                 "window (the top discord)."
             ),
-            "reference_sql": (
-                "SELECT anomaly.main.discord_index("
-                "[1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,"
-                "3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4) AS discord_start"
-            ),
-            "ignore_column_names": True,
         },
         {
             "name": "top_motif_start",
@@ -190,12 +174,6 @@ _AGENT_TEST_TASKS = json.dumps(
                 "return the zero-based start index of the single most repeated pattern (the "
                 "top motif)."
             ),
-            "reference_sql": (
-                "SELECT anomaly.main.motif_index("
-                "[0.0,2.0,4.0,2.0,0.0,0.1,0.116,0.133,0.15,0.166,0.183,0.2,"
-                "0.0,2.0,4.0,2.0,0.0,0.3,0.4,0.5]::DOUBLE[], 5) AS motif_start"
-            ),
-            "ignore_column_names": True,
         },
         {
             "name": "matrix_profile_length",
@@ -205,11 +183,6 @@ _AGENT_TEST_TASKS = json.dumps(
                 "z-normalized distance from every length-4 subsequence to its nearest "
                 "neighbour) and return how many values it contains, as a single number."
             ),
-            "reference_sql": (
-                "SELECT len(anomaly.main.matrix_profile("
-                "[1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0]::DOUBLE[], 4)) AS profile_length"
-            ),
-            "ignore_column_names": True,
         },
     ]
 )
@@ -251,7 +224,7 @@ _ANOMALY_CATALOG = Catalog(
     },
     schemas=[
         Schema(
-            name="main",
+            path=["main"],
             comment="Time-series anomaly detection: matrix profile, change points, z-score for SQL",
             tags={
                 "vgi.title": "Anomaly — main",

@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.13"
 # dependencies = [
-#     "vgi-python[http]>=0.16.0",
+#     "vgi-python[http]>=0.46.1",
 #     "stumpy>=1.12",
 #     "ruptures>=1.1.9",
 #     "numpy",
