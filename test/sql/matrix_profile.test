@@ -8,7 +8,7 @@ statement ok
 LOAD vgi;
 
 statement ok
-ATTACH 'anomaly' AS anomaly (TYPE vgi, LOCATION '${VGI_ANOMALY_WORKER}');
+ATTACH 'anomaly' AS anomaly (TYPE vgi, LOCATION '{VGI_ANOMALY_WORKER}');
 
 # Series of length 25 with a single injected spike at index 18. With window 4 the
 # top discord (most anomalous subsequence) starts at index 16 (covering 16..19,

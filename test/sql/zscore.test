@@ -8,7 +8,7 @@ statement ok
 LOAD vgi;
 
 statement ok
-ATTACH 'anomaly' AS anomaly (TYPE vgi, LOCATION '${VGI_ANOMALY_WORKER}');
+ATTACH 'anomaly' AS anomaly (TYPE vgi, LOCATION '{VGI_ANOMALY_WORKER}');
 
 # One injected outlier (40.0) at index 5; everything else ~10. Beyond 2 sigma -> [5].
 query I

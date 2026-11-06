@@ -171,6 +171,9 @@ esac
 
 cd "$STAGE"
 
+# haybarn-unittest 2.0 isolates $HOME per run; --keep-home keeps the real home so
+# the warmed extension cache (~/.haybarn) is shared by the suite run below.
+#
 # Warm the extension cache once: vgi from the signed community channel. A miss
 # here is only a warning — the per-test INSTALL/LOAD (injected by
 # preprocess-require.awk) is what actually gates each file.
@@ -182,10 +185,10 @@ cat > "$STAGE/test/_warm.test" <<'EOF'
 statement ok
 INSTALL vgi FROM community;
 EOF
-"$HAYBARN_UNITTEST" "test/_warm.test" >/dev/null 2>&1 || echo "::warning::extension warm step did not fully succeed"
+"$HAYBARN_UNITTEST" --keep-home "test/_warm.test" >/dev/null 2>&1 || echo "::warning::extension warm step did not fully succeed"
 rm -f "$STAGE/test/_warm.test"
 
 # Run the whole suite in one invocation, streaming the runner's native
 # sqllogictest report. Any failed assertion exits non-zero and fails the job.
 echo "Running suite (transport: $TRANSPORT, worker: $VGI_ANOMALY_WORKER) ..."
-"$HAYBARN_UNITTEST" "test/sql/*"
+"$HAYBARN_UNITTEST" --keep-home "test/sql/*"
