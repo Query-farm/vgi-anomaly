@@ -20,7 +20,7 @@ change-point detection) and [`numpy`](https://numpy.org/) (BSD-3).
 
 ```sql
 INSTALL vgi FROM community; LOAD vgi;
-ATTACH 'anomaly' (TYPE vgi, LOCATION 'uv run anomaly_worker.py');
+ATTACH 'anomaly' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-anomaly@v0.2.1 vgi-anomaly-worker');
 
 -- A series travels as one DOUBLE[] argument; build it with array_agg(... ORDER BY t).
 SELECT anomaly.discord_index(array_agg(v ORDER BY t), 50)  FROM series;  -- most anomalous window
@@ -38,6 +38,41 @@ SELECT anomaly.discord_index([1.0,2.0,3.0,100.0,2.0,3.0,1.0]::DOUBLE[], 3);
 Results are **deterministic** given the input series and parameters — the same
 series always yields the same indices and profile, so the worker is hermetic and
 easy to test.
+
+## Quick start
+
+The worker isn't on PyPI; [uv](https://docs.astral.sh/uv/) runs it straight from a tagged release on GitHub. `uvx` builds an isolated environment on the first ATTACH and reuses it afterwards:
+
+```sql
+INSTALL vgi FROM community;
+LOAD vgi;
+
+ATTACH 'anomaly' AS anomaly (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-anomaly@v0.2.1 vgi-anomaly-worker');
+
+-- Full matrix profile of a 10-point series with window 4 (7 nearest-neighbour
+-- distances).
+SELECT anomaly.main.matrix_profile([1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0]::DOUBLE[], 4);
+
+-- Start index of the top discord (the most anomalous window-4 subsequence) — the spike
+-- at 18 gives 16.
+SELECT anomaly.main.discord_index([1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4);
+```
+
+Change `@v0.2.1` to move to a newer release.
+
+### Other ways to run it
+
+- **Docker** (the image bundles the worker and its dependencies):
+
+  ```sql
+  ATTACH 'anomaly' AS anomaly (TYPE vgi, LOCATION 'docker://ghcr.io/query-farm/vgi-anomaly:0.2.1');
+  ```
+
+- **From a local checkout** (`git clone https://github.com/Query-farm/vgi-anomaly`), point `LOCATION` at `uv run --project /path/to/vgi-anomaly vgi-anomaly-worker`.
+
+### Build from source
+
+To build the worker yourself, see [Development](#development).
 
 ## The series-as-argument design
 
