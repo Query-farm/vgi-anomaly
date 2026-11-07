@@ -1,6 +1,6 @@
 [project]
 name = "vgi-anomaly"
-version = "0.2.0"
+version = "0.2.1"
 description = "Time-series anomaly detection (matrix profile, change points, z-score) for DuckDB via VGI"
 readme = "README.md"
 keywords = [
