@@ -195,6 +195,7 @@ _ANOMALY_CATALOG = Catalog(
     source_url="https://github.com/Query-farm/vgi-anomaly",
     tags={
         "vgi.title": "Time-Series Anomaly Detection",
+        "vgi.subtitle": "Find outliers, discords, repeated motifs and change points in numeric series from SQL.",
         "vgi.keywords": json.dumps(
             [
                 "anomaly detection",
@@ -227,7 +228,7 @@ _ANOMALY_CATALOG = Catalog(
             path=["main"],
             comment="Time-series anomaly detection: matrix profile, change points, z-score for SQL",
             tags={
-                "vgi.title": "Anomaly — main",
+                "vgi.title": "Anomaly Functions",
                 "vgi.keywords": json.dumps(
                     [
                         "anomaly",
