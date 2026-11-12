@@ -1,6 +1,6 @@
 [project]
 name = "vgi-anomaly"
-version = "0.3.0"
+version = "0.4.0"
 description = "Time-series anomaly detection (matrix profile, change points, z-score) for DuckDB via VGI"
 readme = "README.md"
 keywords = [
@@ -32,7 +32,7 @@ classifiers = [
 # the newest allowed interpreter) would otherwise compile it from source.
 requires-python = ">=3.13,<3.14"
 dependencies = [
-    "vgi-python>=0.50.0",
+    "vgi-python>=0.51.0",
     "stumpy>=1.12",
     "ruptures>=1.1.9",
     "numpy",
@@ -44,14 +44,14 @@ dependencies = [
 # in addition to stdio. That path needs vgi-python's `http` extra (waitress).
 # CI's http transport leg installs this via `uv sync --extra http`.
 http = [
-    "vgi-python[http]>=0.50.0",
+    "vgi-python[http]>=0.51.0",
 ]
 # HTTP-serving extra — installed by the published Docker image (`.[serve]`) so
 # the container can serve the worker over HTTP (/health + VGI RPC) via
 # `vgi-serve --http`. Same content as `http`; a distinct name matches the
 # fleet's Docker template (vgi-llm / vgi-etf-schwab).
 serve = [
-    "vgi-python[http]>=0.50.0",
+    "vgi-python[http]>=0.51.0",
 ]
 dev = [
     "pytest>=8",
