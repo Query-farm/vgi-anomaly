@@ -5,11 +5,9 @@
 Assembles the detectors in ``vgi_anomaly`` into a single ``anomaly`` catalog and
 runs the worker over stdio (DuckDB subprocess) or HTTP. It does matrix-profile
 motif/discord discovery (``stumpy``), change-point detection (``ruptures``), and
-a light z-score fallback over numeric series, all as DuckDB scalar functions.
-
-Each function takes a whole series as a single ``DOUBLE[]`` argument (build it in
-SQL with ``array_agg(value ORDER BY t)``) so it composes without subquery table
-arguments.
+a light z-score fallback over numeric series. Table-buffering functions accept
+an ordered single-column relation and return ordinary rows; scalar functions
+accept a whole series as a single ``DOUBLE[]`` argument for grouped expressions.
 
 This module is wheel-importable: it holds the catalog, the :class:`AnomalyWorker`
 class, and :func:`main`. The repo-root ``anomaly_worker.py`` is a thin PEP 723
@@ -23,20 +21,13 @@ Usage:
     INSTALL vgi FROM community; LOAD vgi;
     ATTACH 'anomaly' (TYPE vgi, LOCATION 'uv run anomaly_worker.py');
 
-    -- top discord (anomaly) / motif start index for window 50:
-    SELECT anomaly.discord_index(array_agg(v ORDER BY t), 50) FROM series;
-    SELECT anomaly.motif_index(array_agg(v ORDER BY t), 50)   FROM series;
-    -- full matrix profile (length = N - window + 1):
-    SELECT anomaly.matrix_profile(array_agg(v ORDER BY t), 50) FROM series;
-    -- change points (auto count, or a fixed number):
-    SELECT anomaly.change_points(array_agg(v ORDER BY t))     FROM series;
-    SELECT anomaly.change_points(array_agg(v ORDER BY t), 2)  FROM series;
-    -- light z-score outliers beyond a threshold (or the default 3 sigma):
-    SELECT UNNEST(anomaly.zscore_anomalies(array_agg(v ORDER BY t), 3.0)) FROM series;
-    SELECT UNNEST(anomaly.zscore_anomalies(array_agg(v ORDER BY t)))      FROM series;
+    SELECT * FROM anomaly.discord_index((SELECT v FROM series ORDER BY t), window_size := 50);
+    SELECT * FROM anomaly.matrix_profile((SELECT v FROM series ORDER BY t), window_size := 50);
+    SELECT * FROM anomaly.change_points((SELECT v FROM series ORDER BY t));
+    SELECT * FROM anomaly.zscore_anomalies((SELECT v FROM series ORDER BY t), threshold := 3.0);
 
-    -- literal series also work:
-    SELECT anomaly.discord_index([1.0, 2.0, 3.0, 100.0, 2.0, 3.0]::DOUBLE[], 3);
+    -- Scalar array calls remain available for grouped analysis:
+    SELECT sensor_id, anomaly.change_points(array_agg(v ORDER BY t)) FROM series GROUP BY sensor_id;
 """
 
 from __future__ import annotations
@@ -49,11 +40,14 @@ from vgi import Worker
 from vgi.catalog import Catalog, Schema
 
 from vgi_anomaly import detectors
+from vgi_anomaly.buffering import BUFFERING_FUNCTIONS
 from vgi_anomaly.scalars import SCALAR_FUNCTIONS
 
 _CATALOG_DESCRIPTION_LLM = (
-    "Time-series anomaly detection over a numeric series passed as a single `DOUBLE[]` argument "
-    "(build it in SQL with array_agg(value ORDER BY t)). Find the most anomalous subsequence "
+    "Time-series anomaly detection over an ordered single-column numeric table: "
+    "Use table calls in FROM with an ordered single-column subquery. "
+    "Table calls return result rows and accept named window_size, n_bkps, or threshold parameters. "
+    "Scalar calls also accept `DOUBLE[]` arrays for grouped expressions. Find the most anomalous subsequence "
     "(discord) and the most repeated pattern (motif) with the matrix profile, compute the full "
     "matrix profile, detect change points (regime shifts) with ruptures PELT/Dynp, and flag "
     "individual outliers beyond a z-score threshold. Use for outlier detection, motif/discord "
@@ -88,7 +82,7 @@ _CATALOG_DESCRIPTION_MD = (
     "Reach for this worker for outlier detection on metrics and IoT sensor data, "
     "motif/discord discovery in financial or operational series, segmentation of "
     "telemetry into stable regimes, and general series quality checks — all expressed as "
-    "plain, composable SQL over a series you assemble with `array_agg`.\n\n"
+    "plain SQL over an ordered input query, or an array assembled with `array_agg`.\n\n"
     "## Built on\n\n"
     "Under the hood the extension stands on three best-in-class scientific Python "
     "libraries. Matrix-profile analysis is powered by "
@@ -104,29 +98,20 @@ _CATALOG_DESCRIPTION_MD = (
 )
 
 _SCHEMA_DESCRIPTION_LLM = (
-    "Anomaly-detection scalar functions operating on a whole numeric series (`DOUBLE[]`): "
+    "Anomaly-detection table functions over ordered numeric rows, plus `DOUBLE[]` scalar functions: "
     "matrix profile, top discord (anomaly) index, top motif index, change-point detection, "
     "and z-score outlier indices."
 )
 
 _SCHEMA_DESCRIPTION_MD = (
     "# Anomaly Detectors\n\n"
-    "Scalar functions that analyse a whole numeric time series for anomalies, repeated "
-    "patterns, and regime changes. Each one takes the series as a single array argument "
-    "you assemble in SQL, so a detector is just another expression you can compose, "
-    "filter, and join against.\n\n"
-    "## Concepts\n\n"
-    "- **Matrix profile** — shape-based analysis that surfaces the most anomalous "
-    "subsequence (discord) and the most repeated one (motif) for a chosen window.\n"
-    "- **Change points** — penalized segmentation that locates structural breaks / "
-    "regime shifts in the level or distribution of the series.\n"
-    "- **Point outliers** — a light, dependency-free z-score pass for individual "
-    "spikes and dropouts.\n\n"
-    "## Using it\n\n"
-    "Build the input with `array_agg(value ORDER BY t)` (or a bracketed array literal) "
-    "so the whole series is passed in time order, then apply the detector that matches "
-    "the question — one anomalous window, one recurring pattern, the regime boundaries, "
-    "or the individual outlier positions."
+    "Analyze a whole numeric time series for anomalies, repeated patterns, and regime changes. "
+    "Pass an ordered single-column relation directly to a buffering table function in FROM.\n\n"
+    "Matrix-profile functions take `window_size := 50`; change points accepts optional `n_bkps := 2`; "
+    "z-score accepts `threshold := 3.0` (the default). Results contain zero-based `index` positions; "
+    "matrix_profile also returns `distance`. Each call buffers one complete series, up to 1,000,000 samples. "
+    "Invalid nonempty series yield one NULL row; empty input and valid series without matches yield zero rows. "
+    "For grouped expressions, the same-named scalars still accept `array_agg(value ORDER BY t)`."
 )
 
 # VGI152/VGI920: an analyst task suite so `vgi-lint simulate` can measure how
@@ -341,7 +326,7 @@ _ANOMALY_CATALOG = Catalog(
                     ]
                 ),
             },
-            functions=list(SCALAR_FUNCTIONS),
+            functions=[*SCALAR_FUNCTIONS, *BUFFERING_FUNCTIONS],
         ),
     ],
 )

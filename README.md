@@ -13,31 +13,34 @@
 A [VGI](https://query.farm) worker that brings **time-series anomaly detection**
 into DuckDB/SQL. It finds the anomalous and the repeated structure in a numeric
 series — **matrix-profile motifs & discords**, **change points**, and a light
-**z-score** outlier check — as plain SQL scalar functions, backed by
+**z-score** outlier check — as SQL table functions over ordered rows, with
+array-based scalar calls also available, backed by
 battle-tested libraries: [`stumpy`](https://pypi.org/project/stumpy/) (BSD-3,
 matrix profile), [`ruptures`](https://pypi.org/project/ruptures/) (BSD-2,
 change-point detection) and [`numpy`](https://numpy.org/) (BSD-3).
 
 ```sql
 INSTALL vgi FROM community; LOAD vgi;
-ATTACH 'anomaly' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-anomaly@v0.4.0 vgi-anomaly-worker');
+ATTACH 'anomaly' (TYPE vgi, LOCATION 'uv run --project /path/to/vgi-anomaly vgi-anomaly-worker');
 
--- A series travels as one DOUBLE[] argument; build it with array_agg(... ORDER BY t).
-SELECT anomaly.discord_index(array_agg(v ORDER BY t), 50)  FROM series;  -- most anomalous window
-SELECT anomaly.motif_index(array_agg(v ORDER BY t), 50)    FROM series;  -- most repeated window
-SELECT anomaly.matrix_profile(array_agg(v ORDER BY t), 50) FROM series;  -- DOUBLE[] profile
-SELECT anomaly.change_points(array_agg(v ORDER BY t))      FROM series;  -- BIGINT[] (auto count)
-SELECT anomaly.change_points(array_agg(v ORDER BY t), 2)   FROM series;  -- exactly 2 change points
-SELECT UNNEST(anomaly.zscore_anomalies(array_agg(v ORDER BY t), 3.0)) FROM series;  -- beyond 3 sigma
-SELECT UNNEST(anomaly.zscore_anomalies(array_agg(v ORDER BY t)))      FROM series;  -- default 3 sigma
+-- Pass an ordered query directly; results are ordinary rows.
+SELECT * FROM anomaly.discord_index((SELECT v FROM series ORDER BY t), window_size := 50);
+SELECT * FROM anomaly.motif_index((SELECT v FROM series ORDER BY t), window_size := 50);
+SELECT * FROM anomaly.matrix_profile((SELECT v FROM series ORDER BY t), window_size := 50);
+SELECT * FROM anomaly.change_points((SELECT v FROM series ORDER BY t));
+SELECT * FROM anomaly.change_points((SELECT v FROM series ORDER BY t), n_bkps := 2);
+SELECT * FROM anomaly.zscore_anomalies((SELECT v FROM series ORDER BY t), threshold := 3.0);
 
--- Literal series work too:
+-- Existing scalar calls still work, including literal arrays and GROUP BY.
 SELECT anomaly.discord_index([1.0,2.0,3.0,100.0,2.0,3.0,1.0]::DOUBLE[], 3);
 ```
 
 Results are **deterministic** given the input series and parameters — the same
 series always yields the same indices and profile, so the worker is hermetic and
 easy to test.
+
+The table interface is available from this checkout; the released `v0.4.0` worker
+provides the array-based scalar interface.
 
 ## Quick start
 
@@ -74,15 +77,41 @@ Change `@v0.4.0` to move to a newer release.
 
 To build the worker yourself, see [Development](#development).
 
-## The series-as-argument design
+## Ordered rows as input
 
-A scalar function sees one row at a time, but anomaly detection is defined over a
-*whole series*. So each function takes the series as a single `DOUBLE[]`
-**argument** that the caller assembles in SQL — typically
-`array_agg(value ORDER BY t)` over an ordered table, or a `[1.0, 2.0, ...]::DOUBLE[]`
-literal. The function returns either a single index (`BIGINT`) or an array
-(`DOUBLE[]` / `BIGINT[]`). This composes cleanly without subquery table
-arguments and runs once per group:
+The table functions use VGI's [buffering API](https://query.farm/vgi/docs/python/how-to/function-patterns/#buffering)
+to collect the entire input before running a detector. Pass a query returning
+**exactly one numeric column**, with `ORDER BY` inside that query. The column can
+have any name; integer, floating-point, and decimal inputs are converted to double.
+Use a unique tie-breaker when timestamps repeat (`ORDER BY ts, sample_id`).
+
+```sql
+SELECT *
+FROM anomaly.zscore_anomalies(
+    (SELECT reading FROM readings ORDER BY ts, sample_id),
+    threshold := 2.0
+);
+```
+
+Each call analyzes one series. Input order is preserved across batches and worker
+processes. This removes `array_agg` and `UNNEST` from the calling SQL; the algorithm
+still buffers the whole series and has the same computational cost and
+1,000,000-sample limit. Add `ORDER BY "index"` to the outer query when result
+presentation order matters.
+
+| Table function | Named parameters | Result columns |
+| --- | --- | --- |
+| `matrix_profile((query), window_size := 50)` | Required `window_size` | `index BIGINT`, `distance DOUBLE`, one row per subsequence |
+| `discord_index((query), window_size := 50)` | Required `window_size` | `index BIGINT`, one row |
+| `motif_index((query), window_size := 50)` | Required `window_size` | `index BIGINT`, one row |
+| `change_points((query))` | Optional `n_bkps` (omit for automatic detection) | `index BIGINT`, one row per change point |
+| `zscore_anomalies((query))` | Optional `threshold` (default `3.0`) | `index BIGINT`, one row per outlier |
+
+All indices are **zero-based positions in the ordered input**. An invalid nonempty
+series produces one row with NULL result columns. Empty input and valid series
+with no change points or outliers produce zero rows. Bad constants raise an error.
+
+For grouped analysis, the existing scalar interface remains convenient:
 
 ```sql
 SELECT sensor_id,
@@ -90,6 +119,10 @@ SELECT sensor_id,
 FROM readings
 GROUP BY sensor_id;
 ```
+
+The scalar functions accept a whole series as `DOUBLE[]` and return an index or
+array. DuckDB distinguishes `SELECT anomaly.change_points(array)` from
+`SELECT * FROM anomaly.change_points((query))`, so both interfaces use the same names.
 
 ## Scalars and argument syntax
 
@@ -103,7 +136,7 @@ SELECT change_points(series);       -- automatic number of change points (PELT)
 SELECT change_points(series, 3);    -- exactly 3 change points (dynamic programming)
 ```
 
-## Function catalog
+## Scalar function catalog
 
 | Function | Signature | Returns | Description |
 | --- | --- | --- | --- |
@@ -149,10 +182,11 @@ nothing; `threshold` must be positive. Omit `threshold`
 
 ## NULL and robustness semantics
 
-A series that is **NULL, empty, too short** for the requested operation, or that
+For scalar calls, a series that is **NULL, empty, too short** for the requested operation, or that
 contains a NULL or non-finite (`NaN`/`inf`) sample yields **NULL** output for that
 row — never an error. Out-of-range constant parameters (`window`, `n_bkps`,
-`threshold`) raise a clear SQL error. Per-row failures never abort the batch.
+`threshold`) raise a clear SQL error. Invalid series yield NULL; bad constants abort the query. Table calls use the
+NULL-row and empty-result semantics described above.
 
 To bound the worst case (the matrix profile is *O(n²)*), series longer than
 **1,000,000** samples are rejected with an error.
@@ -181,14 +215,14 @@ All dependencies are permissively licensed. This project is MIT (see `LICENSE`).
 
 ```sh
 uv sync --extra dev
-uv run pytest -q          # unit tests (pure logic + scalars via the VGI client)
+uv run pytest -q          # unit tests (pure logic + scalar and buffered VGI calls)
 make test-sql             # end-to-end DuckDB SQL tests (haybarn-unittest)
 uv run ruff check . && uv run mypy vgi_anomaly/
 ```
 
 The code is split into a pure-logic module (`vgi_anomaly/detectors.py`, no Arrow
-or VGI — directly unit-testable) and the Arrow/VGI scalar adapters
-(`vgi_anomaly/scalars.py`). `anomaly_worker.py` assembles them into the `anomaly`
+or VGI — directly unit-testable) and the Arrow/VGI adapters
+(`vgi_anomaly/scalars.py` and `vgi_anomaly/buffering.py`). `anomaly_worker.py` assembles them into the `anomaly`
 catalog.
 
 ---
@@ -198,4 +232,3 @@ catalog.
 Written by [Query.Farm](https://query.farm).
 
 Copyright 2026 Query Farm LLC - https://query.farm
-

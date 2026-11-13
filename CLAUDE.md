@@ -8,7 +8,7 @@ Contributor/agent notes. User-facing docs live in `README.md`; this is the
 A [VGI](https://query.farm) worker that does **time-series anomaly detection** —
 matrix-profile motifs/discords (`stumpy`, BSD-3), change-point detection
 (`ruptures`, BSD-2), and a light z-score check (`numpy`, BSD-3) — as DuckDB
-scalar functions. `anomaly_worker.py` assembles every function into one `anomaly`
+buffering table functions and scalar functions. `anomaly_worker.py` assembles every function into one `anomaly`
 catalog (single `main` schema) over stdio. Sibling style/tooling to `vgi-conform`
 and `vgi-calendar`.
 
@@ -21,6 +21,7 @@ vgi_anomaly/
   detectors.py         pure detection logic over stumpy/ruptures/numpy; no Arrow/VGI;
                        unit-testable. Also holds warm_up() and MAX_SERIES_LEN.
   scalars.py           per-row LIST-in scalars (change_points has an arity overload)
+  buffering.py         ordered single-column TABLE-in / result rows out; shared VGI storage
 tests/                 pytest: test_detectors (pure), test_scalars (Client RPC)
 test/sql/*.test        haybarn-unittest sqllogictest — authoritative E2E
 Makefile               test / test-unit / test-sql / lint
@@ -31,7 +32,30 @@ To add a function: implement the logic in `detectors.py` (pure, total — return
 parameter), wrap it as a scalar in `scalars.py`, register it in
 `anomaly_worker.py`'s `SCALAR_FUNCTIONS`.
 
-## The series-as-argument design — THE core convention (read first)
+## Table-buffering interface (preferred for one series)
+
+The same five detector names are also `TableBufferingFunction`s. Call them in
+`FROM` with an ordered, single-column numeric subquery. Parameters are named:
+`window_size := 50`, `n_bkps := 2`, `threshold := 3.0`. Results have a zero-based
+`index`; matrix_profile also has `distance`. Invalid nonempty series yield one NULL
+row; empty input and valid no-match results yield zero rows. Constants are checked at bind time
+and length-dependent bounds in the detector.
+
+`buffering.py` stores each batch in execution-scoped `params.storage`, in sink order
+(`sink_order_dependent=True`), with a shared row counter that also enforces the
+sample limit during ingest. Combine scans the full execution bucket in stored
+row order and runs the detector once. Do not enumerate the input using the
+`state_ids` argument: the SQL host may retain only the last ID from each sink
+thread, whereas the Python client sends every batch ID. Each process call returns
+the same execution ID, and storage is the authoritative inventory of batches. Results are stored in chunks and streamed by a
+wire-serializable finalize cursor. Never keep cross-phase data on the class or
+instance: sink/combine/source may run in different worker processes. SQL callers
+must put `ORDER BY` inside the input query, including a tie-breaker if needed.
+
+Register new table adapters in `BUFFERING_FUNCTIONS`; tests live in
+`tests/test_buffering.py` and `test/sql/buffering.test`.
+
+## Scalar series-as-argument interface (retained for compatibility and GROUP BY)
 
 Anomaly detection is defined over a *whole series*, but a scalar sees one row at
 a time. So each function takes the series as a single `DOUBLE[]` **argument** the
