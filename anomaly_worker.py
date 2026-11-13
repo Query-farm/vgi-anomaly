@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.13,<3.14"
 # dependencies = [
-#     "vgi-python[http]>=0.51.0",
+#     "vgi-python[http]>=0.51.1",
 #     "stumpy>=1.12",
 #     "ruptures>=1.1.9",
 #     "numpy",
@@ -26,7 +26,7 @@ Usage:
     ATTACH 'anomaly' (TYPE vgi, LOCATION 'uv run anomaly_worker.py');
 
     -- top discord (anomaly) / motif start index for window 50:
-    SELECT anomaly.discord_index(array_agg(v ORDER BY t), 50) FROM series;
+    SELECT * FROM anomaly.discord_index((SELECT v FROM series ORDER BY t), window_size := 50);
 """
 
 from __future__ import annotations

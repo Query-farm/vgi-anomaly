@@ -5,6 +5,8 @@ The implementation is split so each concern stays focused:
 - ``detectors`` -- pure anomaly-detection logic over ``stumpy`` (matrix profile),
   ``ruptures`` (change points) and ``numpy``; no Arrow or VGI dependency,
   directly unit-testable. Holds the warm-up that JIT-compiles numba kernels.
+- ``buffering`` -- ordered table input and result rows, using execution-scoped
+  VGI storage to analyze the entire series across input batches.
 - ``scalars``   -- per-row VGI scalar functions operating on a whole numeric
   series passed as a ``DOUBLE[]`` argument (LIST-in; index or LIST out). The
   optional ``n_bkps`` of ``change_points`` is an arity overload.
@@ -15,4 +17,4 @@ catalog and runs the worker over stdio (or HTTP), warming numba at startup.
 
 from __future__ import annotations
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"

@@ -684,7 +684,7 @@ wheels = [
 
 [[package]]
 name = "vgi-anomaly"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "numpy" },
@@ -720,9 +720,9 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "ruptures", specifier = ">=1.1.9" },
     { name = "stumpy", specifier = ">=1.12" },
-    { name = "vgi-python", specifier = ">=0.51.0" },
-    { name = "vgi-python", extras = ["http"], marker = "extra == 'http'", specifier = ">=0.51.0" },
-    { name = "vgi-python", extras = ["http"], marker = "extra == 'serve'", specifier = ">=0.51.0" },
+    { name = "vgi-python", specifier = ">=0.51.1" },
+    { name = "vgi-python", extras = ["http"], marker = "extra == 'http'", specifier = ">=0.51.1" },
+    { name = "vgi-python", extras = ["http"], marker = "extra == 'serve'", specifier = ">=0.51.1" },
 ]
 provides-extras = ["http", "serve", "dev"]
 

@@ -21,7 +21,7 @@ change-point detection) and [`numpy`](https://numpy.org/) (BSD-3).
 
 ```sql
 INSTALL vgi FROM community; LOAD vgi;
-ATTACH 'anomaly' (TYPE vgi, LOCATION 'uv run --project /path/to/vgi-anomaly vgi-anomaly-worker');
+ATTACH 'anomaly' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-anomaly@v0.5.0 vgi-anomaly-worker');
 
 -- Pass an ordered query directly; results are ordinary rows.
 SELECT * FROM anomaly.discord_index((SELECT v FROM series ORDER BY t), window_size := 50);
@@ -39,8 +39,7 @@ Results are **deterministic** given the input series and parameters — the same
 series always yields the same indices and profile, so the worker is hermetic and
 easy to test.
 
-The table interface is available from this checkout; the released `v0.4.0` worker
-provides the array-based scalar interface.
+The table interface was added in `v0.5.0`. Array-based scalar calls remain supported.
 
 ## Quick start
 
@@ -50,25 +49,29 @@ The worker isn't on PyPI; [uv](https://docs.astral.sh/uv/) runs it straight from
 INSTALL vgi FROM community;
 LOAD vgi;
 
-ATTACH 'anomaly' AS anomaly (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-anomaly@v0.4.0 vgi-anomaly-worker');
+ATTACH 'anomaly' AS anomaly (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-anomaly@v0.5.0 vgi-anomaly-worker');
 
--- Full matrix profile of a 10-point series with window 4 (7 nearest-neighbour
--- distances).
-SELECT anomaly.main.matrix_profile([1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0]::DOUBLE[], 4);
+-- Find the outlier in 19 zeros followed by 100: returns index 19.
+SELECT * FROM anomaly.zscore_anomalies(
+    (SELECT CASE WHEN i = 19 THEN 100.0 ELSE 0.0 END
+     FROM range(20) t(i) ORDER BY i)
+);
 
--- Start index of the top discord (the most anomalous window-4 subsequence) — the spike
--- at 18 gives 16.
-SELECT anomaly.main.discord_index([1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,1.0,2.0,3.0,4.0,3.0,2.0,50.0,2.0,3.0,4.0,3.0,2.0,1.0]::DOUBLE[], 4);
+-- Find a regime change: returns index 30.
+SELECT * FROM anomaly.change_points(
+    (SELECT CASE WHEN i < 30 THEN 0.0 ELSE 10.0 END
+     FROM range(60) t(i) ORDER BY i)
+);
 ```
 
-Change `@v0.4.0` to move to a newer release.
+Change `@v0.5.0` to move to a newer release.
 
 ### Other ways to run it
 
 - **Docker** (the image bundles the worker and its dependencies):
 
   ```sql
-  ATTACH 'anomaly' AS anomaly (TYPE vgi, LOCATION 'docker://ghcr.io/query-farm/vgi-anomaly:0.4.0');
+  ATTACH 'anomaly' AS anomaly (TYPE vgi, LOCATION 'docker://ghcr.io/query-farm/vgi-anomaly:0.5.0');
   ```
 
 - **From a local checkout** (`git clone https://github.com/Query-farm/vgi-anomaly`), point `LOCATION` at `uv run --project /path/to/vgi-anomaly vgi-anomaly-worker`.
