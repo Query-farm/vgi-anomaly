@@ -41,6 +41,8 @@ easy to test.
 
 The table interface was added in `v0.5.0`. Array-based scalar calls remain supported.
 
+Explore the [executed anomaly-detection notebook](notebooks/README.md) for spikes, change points, and repeated patterns.
+
 ## Quick start
 
 The worker isn't on PyPI; [uv](https://docs.astral.sh/uv/) runs it straight from a tagged release on GitHub. `uvx` builds an isolated environment on the first ATTACH and reuses it afterwards:
