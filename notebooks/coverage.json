@@ -27,10 +27,10 @@
   "notebooks": [
     {
       "path": "01_spikes_shifts_and_patterns.ipynb",
-      "sha256": "cda60d0c1872bfa7af7ff8a458bfb46f5abffa8320ba6c549348d21a58b1eae9",
+      "sha256": "781690d894e7afcaad789ac37bb147a6efb80afd520189d49d3919b58831650d",
       "execution": {
         "path": "coverage/run-01.json",
-        "sha256": "f6b9dc911448ac7a5aae137ec94d7cc4e8eb41d565ebfa3379866e8797e359b2"
+        "sha256": "6008c82d32169c95f1aaf647e9b0a88f4b93a37a24dae927fd0214709dfe4b92"
       }
     }
   ],
@@ -60,7 +60,7 @@
         "status": "approved",
         "reviewer": "Codex /root/notebooks_sympy",
         "reviewed_at": "2026-11-14T18:13:21.144671+00:00",
-        "notebook_sha256": "cda60d0c1872bfa7af7ff8a458bfb46f5abffa8320ba6c549348d21a58b1eae9",
+        "notebook_sha256": "781690d894e7afcaad789ac37bb147a6efb80afd520189d49d3919b58831650d",
         "catalog_sha256": [
           "c59ff0fae9abc7cc0353937034ce8e07713b53b1346359731cd73a5b8e979bf6",
           "937c03ab77bc7abfd0f39b2fa221e5116e047cd14575b6ade9e0a185cf35cec1"
@@ -94,7 +94,7 @@
         "status": "approved",
         "reviewer": "Codex /root/notebooks_sympy",
         "reviewed_at": "2026-11-14T18:13:21.144671+00:00",
-        "notebook_sha256": "cda60d0c1872bfa7af7ff8a458bfb46f5abffa8320ba6c549348d21a58b1eae9",
+        "notebook_sha256": "781690d894e7afcaad789ac37bb147a6efb80afd520189d49d3919b58831650d",
         "catalog_sha256": [
           "c59ff0fae9abc7cc0353937034ce8e07713b53b1346359731cd73a5b8e979bf6",
           "937c03ab77bc7abfd0f39b2fa221e5116e047cd14575b6ade9e0a185cf35cec1"
@@ -128,7 +128,7 @@
         "status": "approved",
         "reviewer": "Codex /root/notebooks_sympy",
         "reviewed_at": "2026-11-14T18:13:21.144671+00:00",
-        "notebook_sha256": "cda60d0c1872bfa7af7ff8a458bfb46f5abffa8320ba6c549348d21a58b1eae9",
+        "notebook_sha256": "781690d894e7afcaad789ac37bb147a6efb80afd520189d49d3919b58831650d",
         "catalog_sha256": [
           "c59ff0fae9abc7cc0353937034ce8e07713b53b1346359731cd73a5b8e979bf6",
           "937c03ab77bc7abfd0f39b2fa221e5116e047cd14575b6ade9e0a185cf35cec1"
@@ -162,7 +162,7 @@
         "status": "approved",
         "reviewer": "Codex /root/notebooks_sympy",
         "reviewed_at": "2026-11-14T18:13:21.144671+00:00",
-        "notebook_sha256": "cda60d0c1872bfa7af7ff8a458bfb46f5abffa8320ba6c549348d21a58b1eae9",
+        "notebook_sha256": "781690d894e7afcaad789ac37bb147a6efb80afd520189d49d3919b58831650d",
         "catalog_sha256": [
           "c59ff0fae9abc7cc0353937034ce8e07713b53b1346359731cd73a5b8e979bf6",
           "937c03ab77bc7abfd0f39b2fa221e5116e047cd14575b6ade9e0a185cf35cec1"
@@ -196,7 +196,7 @@
         "status": "approved",
         "reviewer": "Codex /root/notebooks_sympy",
         "reviewed_at": "2026-11-14T18:13:21.144671+00:00",
-        "notebook_sha256": "cda60d0c1872bfa7af7ff8a458bfb46f5abffa8320ba6c549348d21a58b1eae9",
+        "notebook_sha256": "781690d894e7afcaad789ac37bb147a6efb80afd520189d49d3919b58831650d",
         "catalog_sha256": [
           "c59ff0fae9abc7cc0353937034ce8e07713b53b1346359731cd73a5b8e979bf6",
           "937c03ab77bc7abfd0f39b2fa221e5116e047cd14575b6ade9e0a185cf35cec1"

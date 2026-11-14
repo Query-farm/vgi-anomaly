@@ -1,0 +1,407 @@
+{
+  "schema_version": 1,
+  "status": "met",
+  "meets_target": true,
+  "catalogs": {
+    "released": {
+      "catalog_status": "verified",
+      "revision": "v0.5.0",
+      "catalog_sha256": "c59ff0fae9abc7cc0353937034ce8e07713b53b1346359731cd73a5b8e979bf6",
+      "collection_reconciled": true,
+      "denominator": 5,
+      "observed_objects": 5,
+      "required": 5,
+      "verified_count": 5,
+      "candidate_count": 0,
+      "fraction": 1.0,
+      "meets_target": true,
+      "exact_runtime_count": 5,
+      "runtime_revisions": [
+        "v0.5.0"
+      ],
+      "covered": [
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "change_points"
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "discord_index"
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "matrix_profile"
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "motif_index"
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "zscore_anomalies"
+        }
+      ],
+      "uncovered": [],
+      "objects": [
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "change_points",
+          "kinds": [
+            "function"
+          ],
+          "signatures": [
+            "change_points(DOUBLE[])",
+            "change_points(DOUBLE[], BIGINT)",
+            "change_points(TABLE, BIGINT)"
+          ],
+          "access": [
+            "read"
+          ],
+          "authentication": [
+            "none"
+          ]
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "discord_index",
+          "kinds": [
+            "function"
+          ],
+          "signatures": [
+            "discord_index(DOUBLE[], BIGINT)",
+            "discord_index(TABLE, BIGINT)"
+          ],
+          "access": [
+            "read"
+          ],
+          "authentication": [
+            "none"
+          ]
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "matrix_profile",
+          "kinds": [
+            "function"
+          ],
+          "signatures": [
+            "matrix_profile(DOUBLE[], BIGINT)",
+            "matrix_profile(TABLE, BIGINT)"
+          ],
+          "access": [
+            "read"
+          ],
+          "authentication": [
+            "none"
+          ]
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "motif_index",
+          "kinds": [
+            "function"
+          ],
+          "signatures": [
+            "motif_index(DOUBLE[], BIGINT)",
+            "motif_index(TABLE, BIGINT)"
+          ],
+          "access": [
+            "read"
+          ],
+          "authentication": [
+            "none"
+          ]
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "zscore_anomalies",
+          "kinds": [
+            "function"
+          ],
+          "signatures": [
+            "zscore_anomalies(DOUBLE[])",
+            "zscore_anomalies(DOUBLE[], DOUBLE)",
+            "zscore_anomalies(TABLE, DOUBLE)"
+          ],
+          "access": [
+            "read"
+          ],
+          "authentication": [
+            "none"
+          ]
+        }
+      ],
+      "issues": []
+    },
+    "current": {
+      "catalog_status": "verified",
+      "revision": "1bf4d7eae1a7c3f3673aa4f83f64f79dd3303959",
+      "catalog_sha256": "937c03ab77bc7abfd0f39b2fa221e5116e047cd14575b6ade9e0a185cf35cec1",
+      "collection_reconciled": true,
+      "denominator": 5,
+      "observed_objects": 5,
+      "required": 5,
+      "verified_count": 5,
+      "candidate_count": 0,
+      "fraction": 1.0,
+      "meets_target": true,
+      "exact_runtime_count": 0,
+      "runtime_revisions": [
+        "v0.5.0"
+      ],
+      "covered": [
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "change_points"
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "discord_index"
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "matrix_profile"
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "motif_index"
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "zscore_anomalies"
+        }
+      ],
+      "uncovered": [],
+      "objects": [
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "change_points",
+          "kinds": [
+            "function"
+          ],
+          "signatures": [
+            "change_points(DOUBLE[])",
+            "change_points(DOUBLE[], BIGINT)",
+            "change_points(TABLE, BIGINT)"
+          ],
+          "access": [
+            "read"
+          ],
+          "authentication": [
+            "none"
+          ]
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "discord_index",
+          "kinds": [
+            "function"
+          ],
+          "signatures": [
+            "discord_index(DOUBLE[], BIGINT)",
+            "discord_index(TABLE, BIGINT)"
+          ],
+          "access": [
+            "read"
+          ],
+          "authentication": [
+            "none"
+          ]
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "matrix_profile",
+          "kinds": [
+            "function"
+          ],
+          "signatures": [
+            "matrix_profile(DOUBLE[], BIGINT)",
+            "matrix_profile(TABLE, BIGINT)"
+          ],
+          "access": [
+            "read"
+          ],
+          "authentication": [
+            "none"
+          ]
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "motif_index",
+          "kinds": [
+            "function"
+          ],
+          "signatures": [
+            "motif_index(DOUBLE[], BIGINT)",
+            "motif_index(TABLE, BIGINT)"
+          ],
+          "access": [
+            "read"
+          ],
+          "authentication": [
+            "none"
+          ]
+        },
+        {
+          "schema": [
+            "main"
+          ],
+          "name": "zscore_anomalies",
+          "kinds": [
+            "function"
+          ],
+          "signatures": [
+            "zscore_anomalies(DOUBLE[])",
+            "zscore_anomalies(DOUBLE[], DOUBLE)",
+            "zscore_anomalies(TABLE, DOUBLE)"
+          ],
+          "access": [
+            "read"
+          ],
+          "authentication": [
+            "none"
+          ]
+        }
+      ],
+      "issues": []
+    }
+  },
+  "interface_drift": {
+    "known": true,
+    "current_only": [],
+    "released_only": [],
+    "changed": []
+  },
+  "notebooks": {
+    "01_spikes_shifts_and_patterns.ipynb": {
+      "verified": true,
+      "issues": []
+    }
+  },
+  "examples": [
+    {
+      "status": "verified",
+      "issues": [],
+      "verified_catalogs": [
+        "released",
+        "current"
+      ],
+      "object": {
+        "schema": [
+          "main"
+        ],
+        "name": "zscore_anomalies"
+      },
+      "notebook": "01_spikes_shifts_and_patterns.ipynb",
+      "runtime_revision": "v0.5.0",
+      "runtime_catalog_sha256": "c59ff0fae9abc7cc0353937034ce8e07713b53b1346359731cd73a5b8e979bf6"
+    },
+    {
+      "status": "verified",
+      "issues": [],
+      "verified_catalogs": [
+        "released",
+        "current"
+      ],
+      "object": {
+        "schema": [
+          "main"
+        ],
+        "name": "change_points"
+      },
+      "notebook": "01_spikes_shifts_and_patterns.ipynb",
+      "runtime_revision": "v0.5.0",
+      "runtime_catalog_sha256": "c59ff0fae9abc7cc0353937034ce8e07713b53b1346359731cd73a5b8e979bf6"
+    },
+    {
+      "status": "verified",
+      "issues": [],
+      "verified_catalogs": [
+        "released",
+        "current"
+      ],
+      "object": {
+        "schema": [
+          "main"
+        ],
+        "name": "matrix_profile"
+      },
+      "notebook": "01_spikes_shifts_and_patterns.ipynb",
+      "runtime_revision": "v0.5.0",
+      "runtime_catalog_sha256": "c59ff0fae9abc7cc0353937034ce8e07713b53b1346359731cd73a5b8e979bf6"
+    },
+    {
+      "status": "verified",
+      "issues": [],
+      "verified_catalogs": [
+        "released",
+        "current"
+      ],
+      "object": {
+        "schema": [
+          "main"
+        ],
+        "name": "discord_index"
+      },
+      "notebook": "01_spikes_shifts_and_patterns.ipynb",
+      "runtime_revision": "v0.5.0",
+      "runtime_catalog_sha256": "c59ff0fae9abc7cc0353937034ce8e07713b53b1346359731cd73a5b8e979bf6"
+    },
+    {
+      "status": "verified",
+      "issues": [],
+      "verified_catalogs": [
+        "released",
+        "current"
+      ],
+      "object": {
+        "schema": [
+          "main"
+        ],
+        "name": "motif_index"
+      },
+      "notebook": "01_spikes_shifts_and_patterns.ipynb",
+      "runtime_revision": "v0.5.0",
+      "runtime_catalog_sha256": "c59ff0fae9abc7cc0353937034ce8e07713b53b1346359731cd73a5b8e979bf6"
+    }
+  ],
+  "issues": []
+}
