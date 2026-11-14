@@ -40,9 +40,9 @@ compilation, not a SQL engine build. When upgrading the release, rerun the defau
 and experiment and compare detector semantics as well as successful startup.
 
 The local lock adds the `[runner]` extra of
-[vgi-example-notebooks v0.3.6](https://github.com/Query-farm/vgi-example-notebooks),
+[vgi-example-notebooks v0.3.8](https://github.com/Query-farm/vgi-example-notebooks),
 while Colab uses only its base. That package owns the
-[standard](https://github.com/Query-farm/vgi-example-notebooks/blob/v0.3.6/docs/standard.md),
+[standard](https://github.com/Query-farm/vgi-example-notebooks/blob/v0.3.8/docs/standard.md),
 runner, branding, secret isolation and SVG presentation. The successful default
 contains native SVG plus content-addressed `charts/` image links for GitHub.
 Experiments retain native SVG. Review PNGs, logs and copies are ignored artifacts;

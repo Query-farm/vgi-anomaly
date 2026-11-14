@@ -1,0 +1,11 @@
+{
+  "repository": "Query-farm/vgi-anomaly",
+  "title": "Time-Series Anomaly Detection",
+  "subtitle": "Find outliers, discords, repeated motifs and change points in numeric series from SQL.",
+  "worker_release": "v0.5.0",
+  "provenance": "Exact catalog tags from immutable released Python source; public tag verified",
+  "source_url": "https://github.com/Query-farm/vgi-anomaly/blob/d3e2a3135812464dd124dbe162fe0826b884ba9f/vgi_anomaly/worker.py#L182",
+  "source_sha256": "7f06ed1be01606b83f6affda228ae220355ce84344eaeedfff0c03984136596e",
+  "source_path": "vgi_anomaly/worker.py",
+  "source_commit": "d3e2a3135812464dd124dbe162fe0826b884ba9f"
+}
