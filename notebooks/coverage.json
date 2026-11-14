@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "catalogs": {
+    "released": {
+      "path": "coverage/catalog-released.json",
+      "sha256": "c59ff0fae9abc7cc0353937034ce8e07713b53b1346359731cd73a5b8e979bf6",
+      "review": {
+        "status": "approved",
+        "reviewer": "Codex /root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T18:13:21.144671+00:00",
+        "catalog_sha256": "c59ff0fae9abc7cc0353937034ce8e07713b53b1346359731cd73a5b8e979bf6",
+        "notes": "Complete native functions/tables/views exports through actual Haybarn attachment; cross-checked against worker registration, buffering.py and scalars.py. Five logical names with scalar and ordered-table overloads, counted once per schema/name. No public objects excluded; release/current names and signatures agree."
+      }
+    },
+    "current": {
+      "path": "coverage/catalog-current.json",
+      "sha256": "937c03ab77bc7abfd0f39b2fa221e5116e047cd14575b6ade9e0a185cf35cec1",
+      "review": {
+        "status": "approved",
+        "reviewer": "Codex /root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T18:13:21.144671+00:00",
+        "catalog_sha256": "937c03ab77bc7abfd0f39b2fa221e5116e047cd14575b6ade9e0a185cf35cec1",
+        "notes": "Complete native functions/tables/views exports through actual Haybarn attachment; cross-checked against worker registration, buffering.py and scalars.py. Five logical names with scalar and ordered-table overloads, counted once per schema/name. No public objects excluded; release/current names and signatures agree."
+      }
+    }
+  },
+  "notebooks": [
+    {
+      "path": "01_spikes_shifts_and_patterns.ipynb",
+      "sha256": "cda60d0c1872bfa7af7ff8a458bfb46f5abffa8320ba6c549348d21a58b1eae9",
+      "execution": {
+        "path": "coverage/run-01.json",
+        "sha256": "f6b9dc911448ac7a5aae137ec94d7cc4e8eb41d565ebfa3379866e8797e359b2"
+      }
+    }
+  ],
+  "examples": [
+    {
+      "object": {
+        "schema": "main",
+        "name": "zscore_anomalies"
+      },
+      "notebook": "01_spikes_shifts_and_patterns.ipynb",
+      "sql": [
+        {
+          "cell": "1a4048a5",
+          "reference": "anomaly.zscore_anomalies"
+        }
+      ],
+      "narrative_cells": [
+        "4e348d32"
+      ],
+      "result_cells": [
+        "b2cbfd31"
+      ],
+      "interpretation_cells": [
+        "ca13ce5a"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "Codex /root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T18:13:21.144671+00:00",
+        "notebook_sha256": "cda60d0c1872bfa7af7ff8a458bfb46f5abffa8320ba6c549348d21a58b1eae9",
+        "catalog_sha256": [
+          "c59ff0fae9abc7cc0353937034ce8e07713b53b1346359731cd73a5b8e979bf6",
+          "937c03ab77bc7abfd0f39b2fa221e5116e047cd14575b6ade9e0a185cf35cec1"
+        ],
+        "purpose": "Compare whole-record and within-segment point flags at one shared cutoff.",
+        "finding": "The real grouped scalar flags minute180 in its segment; the whole-series table call returns no flags. SQL scores agree with both worker decisions: the injected spike is2.21sigma globally versus4.13sigma within its segment, at cutoff3. Empty global results alone are not the coverage evidence; the grouped call produces a meaningful nonempty flag."
+      }
+    },
+    {
+      "object": {
+        "schema": "main",
+        "name": "change_points"
+      },
+      "notebook": "01_spikes_shifts_and_patterns.ipynb",
+      "sql": [
+        {
+          "cell": "284854f8",
+          "reference": "anomaly.change_points"
+        }
+      ],
+      "narrative_cells": [
+        "5f525161"
+      ],
+      "result_cells": [
+        "4bc5f1a1"
+      ],
+      "interpretation_cells": [
+        "b2cbfd31"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "Codex /root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T18:13:21.144671+00:00",
+        "notebook_sha256": "cda60d0c1872bfa7af7ff8a458bfb46f5abffa8320ba6c549348d21a58b1eae9",
+        "catalog_sha256": [
+          "c59ff0fae9abc7cc0353937034ce8e07713b53b1346359731cd73a5b8e979bf6",
+          "937c03ab77bc7abfd0f39b2fa221e5116e047cd14575b6ade9e0a185cf35cec1"
+        ],
+        "purpose": "Choose segment boundaries from the ordered input and use them to define local reference distributions.",
+        "finding": "The automatic worker call returns one boundary at120, which splits the240samples into two contiguous segments. Grouped summaries and original-position mapping drive the local z-score comparison; no cause or independent validation is claimed."
+      }
+    },
+    {
+      "object": {
+        "schema": "main",
+        "name": "matrix_profile"
+      },
+      "notebook": "01_spikes_shifts_and_patterns.ipynb",
+      "sql": [
+        {
+          "cell": "432d9316",
+          "reference": "anomaly.matrix_profile"
+        }
+      ],
+      "narrative_cells": [
+        "305bc13d"
+      ],
+      "result_cells": [
+        "1c132fab"
+      ],
+      "interpretation_cells": [
+        "2430d25c"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "Codex /root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T18:13:21.144671+00:00",
+        "notebook_sha256": "cda60d0c1872bfa7af7ff8a458bfb46f5abffa8320ba6c549348d21a58b1eae9",
+        "catalog_sha256": [
+          "c59ff0fae9abc7cc0353937034ce8e07713b53b1346359731cd73a5b8e979bf6",
+          "937c03ab77bc7abfd0f39b2fa221e5116e047cd14575b6ade9e0a185cf35cec1"
+        ],
+        "purpose": "Compare each24-sample shape with its nearest nontrivial normalized match.",
+        "finding": "The full profile has217 finite nonnegative distances at contiguous starts. Its maximum is5.645 near the injected shift and its minimum iszero for repeated cycles; distances are dimensionless and not comparable as severity across window lengths."
+      }
+    },
+    {
+      "object": {
+        "schema": "main",
+        "name": "discord_index"
+      },
+      "notebook": "01_spikes_shifts_and_patterns.ipynb",
+      "sql": [
+        {
+          "cell": "432d9316",
+          "reference": "anomaly.discord_index"
+        }
+      ],
+      "narrative_cells": [
+        "305bc13d"
+      ],
+      "result_cells": [
+        "98a95ed7"
+      ],
+      "interpretation_cells": [
+        "2430d25c"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "Codex /root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T18:13:21.144671+00:00",
+        "notebook_sha256": "cda60d0c1872bfa7af7ff8a458bfb46f5abffa8320ba6c549348d21a58b1eae9",
+        "catalog_sha256": [
+          "c59ff0fae9abc7cc0353937034ce8e07713b53b1346359731cd73a5b8e979bf6",
+          "937c03ab77bc7abfd0f39b2fa221e5116e047cd14575b6ade9e0a185cf35cec1"
+        ],
+        "purpose": "Locate the hardest-to-match window and map its positional result back to time and construction markers.",
+        "finding": "The returned discord starts109 and ends132 inclusive, crosses the injected shift, and its distance equals the full profile maximum. The start is a window boundary, not an estimated incident timestamp."
+      }
+    },
+    {
+      "object": {
+        "schema": "main",
+        "name": "motif_index"
+      },
+      "notebook": "01_spikes_shifts_and_patterns.ipynb",
+      "sql": [
+        {
+          "cell": "432d9316",
+          "reference": "anomaly.motif_index"
+        }
+      ],
+      "narrative_cells": [
+        "305bc13d"
+      ],
+      "result_cells": [
+        "98a95ed7"
+      ],
+      "interpretation_cells": [
+        "2430d25c"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "Codex /root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T18:13:21.144671+00:00",
+        "notebook_sha256": "cda60d0c1872bfa7af7ff8a458bfb46f5abffa8320ba6c549348d21a58b1eae9",
+        "catalog_sha256": [
+          "c59ff0fae9abc7cc0353937034ce8e07713b53b1346359731cd73a5b8e979bf6",
+          "937c03ab77bc7abfd0f39b2fa221e5116e047cd14575b6ade9e0a185cf35cec1"
+        ],
+        "purpose": "Locate a repeated shape as a comparison to the discord.",
+        "finding": "The returned motif starts0 and ends23 inclusive; its zero distance equals the full profile minimum. Source-backed first-extremum semantics and possible ties are explained for this periodic signal."
+      }
+    }
+  ]
+}

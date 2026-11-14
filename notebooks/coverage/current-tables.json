@@ -1,0 +1,9 @@
+{
+  "query": "SELECT database_name,schema_name,table_name FROM duckdb_tables() WHERE database_name='anomaly' ORDER BY schema_name,table_name",
+  "columns": [
+    "database_name",
+    "schema_name",
+    "table_name"
+  ],
+  "rows": []
+}

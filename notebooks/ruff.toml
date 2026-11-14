@@ -1,0 +1,12 @@
+line-length = 120
+target-version = "py311"
+extend-exclude = ["artifacts", "validation", ".vgi-examples"]
+
+[lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "D"]
+
+[lint.per-file-ignores]
+"*.ipynb" = ["E501"]
+
+[lint.pydocstyle]
+convention = "google"

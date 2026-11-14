@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "repository": "Query-farm/vgi-anomaly",
+  "revision": "1bf4d7eae1a7c3f3673aa4f83f64f79dd3303959",
+  "captured_at": "2026-11-14T18:10:59.303358+00:00",
+  "default_schema": "main",
+  "scope": "all_public_functions_and_tables",
+  "complete": true,
+  "evidence": [
+    {
+      "path": "coverage/current-functions.json",
+      "sha256": "133de63741b7ba781d1a2c2d0ed4ff3523c40457adbb45a570e3899e3825ccc5",
+      "description": "Complete worker-filtered functions catalog export through actual published Haybarn"
+    },
+    {
+      "path": "coverage/current-tables.json",
+      "sha256": "08e044487f06e356a4d502f3ff5605a4fbbf6b0a17243e8b3a91086d530e3d61",
+      "description": "Complete worker-filtered tables catalog export through actual published Haybarn"
+    },
+    {
+      "path": "coverage/current-views.json",
+      "sha256": "a318b3ecd750f2a3207e28e38d4d3bc29a72d4b1c03eca428d281e4ed2dd5538",
+      "description": "Complete worker-filtered views catalog export through actual published Haybarn"
+    }
+  ],
+  "objects": [
+    {
+      "schema": "main",
+      "name": "change_points",
+      "kind": "function",
+      "signatures": [
+        "change_points(DOUBLE[])"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "main",
+      "name": "change_points",
+      "kind": "function",
+      "signatures": [
+        "change_points(DOUBLE[], BIGINT)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "main",
+      "name": "change_points",
+      "kind": "function",
+      "signatures": [
+        "change_points(TABLE, BIGINT)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "main",
+      "name": "discord_index",
+      "kind": "function",
+      "signatures": [
+        "discord_index(DOUBLE[], BIGINT)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "main",
+      "name": "discord_index",
+      "kind": "function",
+      "signatures": [
+        "discord_index(TABLE, BIGINT)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "main",
+      "name": "matrix_profile",
+      "kind": "function",
+      "signatures": [
+        "matrix_profile(DOUBLE[], BIGINT)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "main",
+      "name": "matrix_profile",
+      "kind": "function",
+      "signatures": [
+        "matrix_profile(TABLE, BIGINT)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "main",
+      "name": "motif_index",
+      "kind": "function",
+      "signatures": [
+        "motif_index(DOUBLE[], BIGINT)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "main",
+      "name": "motif_index",
+      "kind": "function",
+      "signatures": [
+        "motif_index(TABLE, BIGINT)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "main",
+      "name": "zscore_anomalies",
+      "kind": "function",
+      "signatures": [
+        "zscore_anomalies(DOUBLE[])"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "main",
+      "name": "zscore_anomalies",
+      "kind": "function",
+      "signatures": [
+        "zscore_anomalies(DOUBLE[], DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "main",
+      "name": "zscore_anomalies",
+      "kind": "function",
+      "signatures": [
+        "zscore_anomalies(TABLE, DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    }
+  ]
+}
