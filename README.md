@@ -21,7 +21,7 @@ change-point detection) and [`numpy`](https://numpy.org/) (BSD-3).
 
 ```sql
 INSTALL vgi FROM community; LOAD vgi;
-ATTACH 'anomaly' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-anomaly@v0.5.0 vgi-anomaly-worker');
+ATTACH 'anomaly' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-anomaly@v0.5.1 vgi-anomaly-worker');
 
 -- Pass an ordered query directly; results are ordinary rows.
 SELECT * FROM anomaly.discord_index((SELECT v FROM series ORDER BY t), window_size := 50);
@@ -51,7 +51,7 @@ The worker isn't on PyPI; [uv](https://docs.astral.sh/uv/) runs it straight from
 INSTALL vgi FROM community;
 LOAD vgi;
 
-ATTACH 'anomaly' AS anomaly (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-anomaly@v0.5.0 vgi-anomaly-worker');
+ATTACH 'anomaly' AS anomaly (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-anomaly@v0.5.1 vgi-anomaly-worker');
 
 -- Find the outlier in 19 zeros followed by 100: returns index 19.
 SELECT * FROM anomaly.zscore_anomalies(

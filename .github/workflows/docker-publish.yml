@@ -5,12 +5,11 @@
 # in the shared reusable workflow Query-farm/vgi-actions/docker-publish.yml; this file
 # gates on the repo's own CI and supplies the worker-specific inputs.
 #
-# Tag-driven: vX.Y.Z -> :X.Y.Z / :X.Y / :latest; push to main -> :edge.
+# Tag-driven: vX.Y.Z -> :X.Y.Z / :X.Y / :latest; release tags only; :edge is no longer published.
 name: Publish image to ghcr.io
 
 on:
   push:
-    branches: [main]
     tags: ['v*.*.*']
   workflow_dispatch:
 

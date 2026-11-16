@@ -140,7 +140,9 @@ def test_bad_constants_error(client, name, kwargs):
 
 @pytest.mark.parametrize("columns", [{"a": [1.0], "b": [2.0]}, {"a": ["bad"]}])
 def test_bind_rejects_wrong_input_shape(client, columns):
-    with pytest.raises(ClientError, match="numeric"):
+    # vgi-python >= 0.52.2 rejects a multi-column input during overload resolution
+    # ("No matching function"), before the function's own numeric-column check runs.
+    with pytest.raises(ClientError, match="numeric|No matching function"):
         list(
             client.table_buffering_function(
                 function_name="zscore_anomalies", schema_path=["main"], input=iter([pa.record_batch(columns)])
