@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = "==3.13.*"
 
 [[package]]
@@ -720,15 +720,15 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "ruptures", specifier = ">=1.1.9" },
     { name = "stumpy", specifier = ">=1.12" },
-    { name = "vgi-python", specifier = ">=0.51.1" },
-    { name = "vgi-python", extras = ["http"], marker = "extra == 'http'", specifier = ">=0.51.1" },
-    { name = "vgi-python", extras = ["http"], marker = "extra == 'serve'", specifier = ">=0.51.1" },
+    { name = "vgi-python", specifier = ">=0.52.0" },
+    { name = "vgi-python", extras = ["http"], marker = "extra == 'http'", specifier = ">=0.52.0" },
+    { name = "vgi-python", extras = ["http"], marker = "extra == 'serve'", specifier = ">=0.52.0" },
 ]
 provides-extras = ["http", "serve", "dev"]
 
 [[package]]
 name = "vgi-python"
-version = "0.51.1"
+version = "0.52.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -739,9 +739,9 @@ dependencies = [
     { name = "typer" },
     { name = "vgi-rpc" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/08/f6/2c758ba0ae2b0799ce88c106a1d5923c7ff012c75fe284adcc423e862f34/vgi_python-0.51.1.tar.gz", hash = "sha256:506aa201575284b38584a882373d4e839a2043f4da117314912826e845b5a54e", size = 5599371, upload-time = "2026-11-12T18:16:21.36Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7e/84/ada0b5d42a38ae0acbca34ca93deb82dd2800ac8610a97df9ef376035178/vgi_python-0.52.0.tar.gz", hash = "sha256:6ca3fd4a24b3b4264c25201d3a9249206a274d1820e064a5bee0b3d6e561779f", size = 5601825, upload-time = "2026-11-16T05:12:17.805Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0c/da/3e9cfcdefe72e41f8d54f10cfe0c6929fd3252a7e137c548513381dda892/vgi_python-0.51.1-py3-none-any.whl", hash = "sha256:3d8144e1d12d0e6b3962cd44f22a7b4e7764e9d1248357095f7bb9bc5a7c7409", size = 1455405, upload-time = "2026-11-12T18:16:19.552Z" },
+    { url = "https://files.pythonhosted.org/packages/8a/ff/ecea833d823c88ea1f4f458cf545ee5edc294aeb80b4e9776cb8a329c447/vgi_python-0.52.0-py3-none-any.whl", hash = "sha256:5bc11810be2da163534206a7a5bb6b1e7cb0af0195a4e6b29e5c0661ef49950e", size = 1456714, upload-time = "2026-11-16T05:12:15.548Z" },
 ]
 
 [package.optional-dependencies]
