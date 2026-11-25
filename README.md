@@ -19,9 +19,11 @@ battle-tested libraries: [`stumpy`](https://pypi.org/project/stumpy/) (BSD-3,
 matrix profile), [`ruptures`](https://pypi.org/project/ruptures/) (BSD-2,
 change-point detection) and [`numpy`](https://numpy.org/) (BSD-3).
 
+vgi-anomaly 0.6.0 speaks VGI protocol 3.4, so it needs Haybarn 2.0.1 or newer (Haybarn 2.0.0 loads a 3.3 `vgi` extension that cannot attach it).
+
 ```sql
 INSTALL vgi FROM community; LOAD vgi;
-ATTACH 'anomaly' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-anomaly@v0.5.2 vgi-anomaly-worker');
+ATTACH 'anomaly' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-anomaly@v0.6.0 vgi-anomaly-worker');
 
 -- Pass an ordered query directly; results are ordinary rows.
 SELECT * FROM anomaly.discord_index((SELECT v FROM series ORDER BY t), window_size := 50);
@@ -51,7 +53,7 @@ The worker isn't on PyPI; [uv](https://docs.astral.sh/uv/) runs it straight from
 INSTALL vgi FROM community;
 LOAD vgi;
 
-ATTACH 'anomaly' AS anomaly (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-anomaly@v0.5.2 vgi-anomaly-worker');
+ATTACH 'anomaly' AS anomaly (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-anomaly@v0.6.0 vgi-anomaly-worker');
 
 -- Find the outlier in 19 zeros followed by 100: returns index 19.
 SELECT * FROM anomaly.zscore_anomalies(
@@ -66,14 +68,14 @@ SELECT * FROM anomaly.change_points(
 );
 ```
 
-Change `@v0.5.2` to move to a newer release.
+Change `@v0.6.0` to move to a newer release.
 
 ### Other ways to run it
 
 - **Docker** (the image bundles the worker and its dependencies):
 
   ```sql
-  ATTACH 'anomaly' AS anomaly (TYPE vgi, LOCATION 'docker://ghcr.io/query-farm/vgi-anomaly:0.5.2');
+  ATTACH 'anomaly' AS anomaly (TYPE vgi, LOCATION 'docker://ghcr.io/query-farm/vgi-anomaly:0.6.0');
   ```
 
 - **From a local checkout** (`git clone https://github.com/Query-farm/vgi-anomaly`), point `LOCATION` at `uv run --project /path/to/vgi-anomaly vgi-anomaly-worker`.
