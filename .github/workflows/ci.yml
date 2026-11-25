@@ -109,7 +109,7 @@ jobs:
         transport: [stdio, launch, http]
     env:
       UV_PYTHON: "3.13"
-      HAYBARN_VERSION: "2.0.0rc11"
+      HAYBARN_VERSION: "2.0.1rc3"
     defaults:
       run:
         shell: bash
